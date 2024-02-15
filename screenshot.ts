@@ -27,7 +27,7 @@ const screenshot = async () => {
     // 1. Launch a new browser session
     const browser = await pup.launch({
       // Determines whether to run the browser in headless mode (without a GUI). true/false/'new' (same as true but also starts the browser in a new X session)
-      headless: false,
+      headless: "new",
       // path to a browser executable to use instead of the bundled Chromium
       executablePath: chromePath(),
       // path to a user data directory, i.e. the user profile directory
