@@ -1,6 +1,7 @@
 import { Page } from "puppeteer";
 
-const UNIQUE_IDENTIFIER_ATTRIBUTE = "gpt-link-text";
+// for reference, this variable must be defined in the browser context (inside the pageFunction)
+// const UNIQUE_IDENTIFIER_ATTRIBUTE = "gpt-link-text";
 
 const INTERACTIVE_ELEMENTS = [
   "a",
@@ -31,7 +32,8 @@ export const annotateAllInteractiveElements = async (page: Page) => {
   // $$eval method runs Array.from(document.querySelectorAll(selector)) within the `page`and passes the result as the first argument to the pageFunction.
   // If no elements match the selector, the first argument to the pageFunction is [].
   await page.$$eval(
-    INTERACTIVE_ELEMENTS.join(", "),
+    INTERACTIVE_ELEMENTS.join(", "), // the selector can be defined outside the browser context
+
     // the argument `elements` can be an empty array if no elements match the selector
     function (elements) {
       // any console.log will not be visible in the node terminal
