@@ -28,7 +28,7 @@ const resetUniqueIdentifierAttribute = async (page: Page): Promise<void> => {
   });
 };
 
-export const annotateAllInteractiveElements = async (page: Page) => {
+const annotateAllInteractiveElements = async (page: Page) => {
   // $$eval method runs Array.from(document.querySelectorAll(selector)) within the `page`and passes the result as the first argument to the pageFunction.
   // If no elements match the selector, the first argument to the pageFunction is [].
   await page.$$eval(
