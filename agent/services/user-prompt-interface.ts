@@ -20,6 +20,11 @@ export const userPromptInterface = async (query: string) => {
   return prompt;
 };
 
+/**
+ * This service creates a user prompt interface and returns a promise that resolves to the user's input. Allow user to input in the `terminal`.
+ * @param query
+ * @returns A promise that resolves to the user's input
+ */
 export const userPromptInterfaceV2 = async (query: string) => {
   // Create an interface to read input from the user
   const userInterface = readline.createInterface({

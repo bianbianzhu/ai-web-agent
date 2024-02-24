@@ -1,10 +1,10 @@
 import fs from "fs";
-import { isValidImagePath } from "./utils.js";
+import { isValidImagePath } from "../utils.js";
 
 const URI_PREFIX = "data:image/jpeg;base64,";
 
 /**
- * This function takes the path to an image file and returns a base64 string
+ * This service takes the path to an image file and returns a base64 string. Transform the image into a format that can be processed by the GPT model
  * @param imageFilePath - The path to the image file
  * @returns A promise that resolves to the base64 string
  */
