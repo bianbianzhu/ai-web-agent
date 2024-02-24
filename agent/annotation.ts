@@ -12,7 +12,7 @@ const INTERACTIVE_ELEMENTS = [
 ];
 
 /**
- * TODO: Reset the unique identifier attribute and remove previously highlighted elements
+ * Reset the unique identifier attribute and remove previously highlighted elements
  * @param page
  */
 const resetUniqueIdentifierAttribute = async (page: Page): Promise<void> => {
@@ -27,7 +27,7 @@ const resetUniqueIdentifierAttribute = async (page: Page): Promise<void> => {
   });
 };
 
-export const outlineAllInteractiveElements = async (page: Page) => {
+export const annotateAllInteractiveElements = async (page: Page) => {
   // $$eval method runs Array.from(document.querySelectorAll(selector)) within the `page`and passes the result as the first argument to the pageFunction.
   // If no elements match the selector, the first argument to the pageFunction is [].
   await page.$$eval(
@@ -42,6 +42,7 @@ export const outlineAllInteractiveElements = async (page: Page) => {
         throw new Error("No elements found");
       }
 
+      //======================================VALIDATE ELEMENT CAN INTERACT=================================================
       // This run-time check must be defined inside the pageFunction as it is running in the browser context. If defined outside, it will throw an error: "ReferenceError: isHTMLElement is not defined"
       const isHTMLElement = (element: Element): element is HTMLElement => {
         return element instanceof HTMLElement;
@@ -87,34 +88,44 @@ export const outlineAllInteractiveElements = async (page: Page) => {
         return isElementInViewport(element);
       };
 
+      //========================================PREPARE UNIQUE IDENTIFIER================================================
+
       // clean up the input text by removing any characters that are not alphanumeric (letters and numbers) or spaces.
+      // Does not support non-English characters; Set the language of the page to English to avoid issues
       const cleanUpTextContent = (text: string) =>
         text.replace(/[^a-zA-Z0-9 ]/g, "");
 
-      // highlight all the interactive elements with a red bonding box
-      elements.forEach((element) => {
-        if (isHTMLElement(element) && isElementVisible(element)) {
-          element.style.outline = "2px solid red";
+      const setUniqueIdentifierBasedOnTextContent = (element: Element) => {
+        const UNIQUE_IDENTIFIER_ATTRIBUTE = "gpt-link-text";
+        const { textContent, tagName } = element;
+        // if the node is a document or doctype, textContent will be null
+        if (textContent === null) {
+          return;
+        }
 
+        const linkText =
+          textContent.trim() === ""
+            ? `${tagName}-${crypto.randomUUID()}`
+            : cleanUpTextContent(textContent).trim();
+
+        element.setAttribute(UNIQUE_IDENTIFIER_ATTRIBUTE, linkText);
+      };
+
+      //========================================HIGHLIGHT INTERACTIVE ELEMENTS================================================
+
+      // TODO: give all bounding box but only visible elements unique id????
+      for (const element of elements) {
+        if (isHTMLElement(element)) {
+          // highlight all the interactive elements with a red bonding box
+          element.style.outline = "2px solid red";
+        }
+
+        if (isElementVisible(element)) {
           // set a unique identifier attribute to the element
           // this attribute will be used to identify the element that puppeteer should interact with
-          const { textContent, tagName, classList } = element;
-          let linkText: string | undefined;
-
-          if (textContent === null) {
-            return;
-          }
-
-          const UNIQUE_IDENTIFIER_ATTRIBUTE = "gpt-link-text";
-
-          linkText =
-            textContent.trim() === ""
-              ? `${tagName}-${crypto.randomUUID()}`
-              : cleanUpTextContent(textContent).trim();
-
-          element.setAttribute(UNIQUE_IDENTIFIER_ATTRIBUTE, linkText);
+          setUniqueIdentifierBasedOnTextContent(element);
         }
-      });
+      }
     }
   );
 };
@@ -125,5 +136,5 @@ export const outlineAllInteractiveElements = async (page: Page) => {
  */
 export const highlightInteractiveElements = async (page: Page) => {
   await resetUniqueIdentifierAttribute(page);
-  await outlineAllInteractiveElements(page);
+  await annotateAllInteractiveElements(page);
 };

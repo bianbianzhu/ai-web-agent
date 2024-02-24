@@ -6,7 +6,7 @@ import fs from "fs";
 import readline from "readline";
 import { imageToBase64String, imageToBase64StringV2 } from "./transform.js";
 import { sleep } from "./utils.js";
-import { outlineAllInteractiveElements } from "./annotation.js";
+import { highlightInteractiveElements } from "./annotation.js";
 
 const pup = puppeteer.default.use(StealthPlugin());
 
@@ -24,8 +24,6 @@ const browser = await pup.launch({
 
 const page = await browser.newPage();
 
-await page.goto("https://property-hunter-50022.web.app/");
+await page.goto("https://www.amazon.com/");
 
-await outlineAllInteractiveElements(page);
-
-// browser.close();
+await page.setViewport({ width: 1200, height: 1200, deviceScaleFactor: 1 });

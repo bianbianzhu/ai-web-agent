@@ -98,6 +98,7 @@ export const isHTMLElement = (element: Element): element is HTMLElement => {
  * @description - This regular expression matches any character that is `not (^)` a `lowercase letter (a-z)`, an `uppercase letter (A-Z)`, a `number (0-9)`, or a `space ( )`.
  * The `g` at the end of the regular expression is a flag that stands for 'global', which means it will replace all matches in the string, not just the first one.
  * @example `cleanUpTextContent("Hello, World!")` returns `"Hello World"`
+ * @todo - This function does not support `non-English characters`. These characters will be removed too.
  */
 export const cleanUpTextContent = (text: string) =>
   text.replace(/[^a-zA-Z0-9 ]/g, "");
