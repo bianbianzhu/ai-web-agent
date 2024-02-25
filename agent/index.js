@@ -173,4 +173,8 @@ const cleanUpTextContent = (text) => text.replace(/[^a-zA-Z0-9 ]/g, "");
 
 // console.log(cleanUpTextContent("Hello, World!"));
 
-console.log(innerMost.textContent === "");
+// console.log(innerMost.textContent === "");
+
+document.addEventListener("DOMContentLoaded", () => {
+  console.log("load event");
+});

@@ -38,7 +38,7 @@ export const userPromptInterfaceV2 = async (query: string) => {
   return new Promise<string>((resolve) => {
     userInterface.question(query, (input) => {
       resolve(input);
-      userInterface.close();
+      userInterface.close(); // Close the user interface
     });
   });
 };

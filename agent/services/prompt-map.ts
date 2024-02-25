@@ -3,14 +3,17 @@ import {
   ChatCompletionMessageParam,
 } from "openai/resources/index.mjs";
 
-export const WELCOME_MESSAGE = `Hi, How can I help you today?`;
+export const staticMessageMap = {
+  welcome: "Hi, how can I help you today?",
+  you: "You: ",
+} as const;
 
 // TODO: what is the best way to define the type of the promptMap?
 /**
  * This service is to define the prompts in a type-safe manner
  * @field context - The context of the conversation. Declare the role of the agent; State the main task and other relevant information
  * @field instruction - The instruction to the agent. Provide the screenshot of the website and instruct the agent on how to interact with the website
- * @field question - The question to the agent. Ask the agent to perform a specific task
+ * @field task - Ask the agent to perform a specific task
  */
 export const promptMap = {
   context: (): ChatCompletionMessageParam => ({
@@ -42,7 +45,7 @@ export const promptMap = {
       },
     ],
   }),
-  question: (userInterfacePrompt: string): ChatCompletionMessageParam => ({
+  task: (userInterfacePrompt: string): ChatCompletionMessageParam => ({
     role: "user",
     content: userInterfacePrompt,
   }),

@@ -1,9 +1,16 @@
+import { Page } from "puppeteer";
+
 /**
  * This function is used to sleep the execution of the program for a given amount of time
- * @param delay - The amount of time to sleep in milliseconds
+ * @param delayMillis - The amount of time to sleep in milliseconds
  */
-export const sleep = async (delay: number): Promise<void> => {
-  return await new Promise((resolve) => setTimeout(resolve, delay));
+export const sleep = async (delayMillis: number): Promise<string> => {
+  return await new Promise((resolve) =>
+    setTimeout(() => {
+      resolve(`Waited for ${delayMillis / 1000} seconds`);
+      return;
+    }, delayMillis)
+  );
 };
 
 /**
@@ -17,6 +24,28 @@ export const isValidImagePath = (filePath: string): boolean => {
 
   // Test the filePath against the regex
   return regex.test(filePath);
+};
+
+/**
+ * Check if the given string is a valid URL
+ * @param txt - The string to check
+ * @returns A boolean indicating whether the string is a valid URL
+ */
+export const isValidURL = (txt: string | undefined) => {
+  if (txt === undefined) {
+    return false;
+  }
+  const pattern = new RegExp(
+    "^(https?:\\/\\/)" + // protocol
+      "((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|" + // domain name and extension
+      "((\\d{1,3}\\.){3}\\d{1,3}))" + // OR ip (v4) address
+      "(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*" + // port and path
+      "(\\?[;&a-z\\d%_.~+=-]*)?" + // query string
+      "(\\#[-a-z\\d_]*)?$",
+    "i"
+  );
+
+  return pattern.test(txt);
 };
 
 /**
