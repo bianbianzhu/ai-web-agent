@@ -119,7 +119,9 @@ const annotateAllInteractiveElements = async (page: Page) => {
 
       //========================================HIGHLIGHT INTERACTIVE ELEMENTS================================================
 
-      // TODO: give all bounding box but only visible elements unique id????
+      // TODO: give all bounding box but only give visible elements unique id????
+      // TODO: only the elements with unique id would be interacted by the puppeteer
+      // TODO: what is the purpose of highlighting all the interactive elements?
       for (const element of elements) {
         if (isHTMLElement(element)) {
           // highlight all the interactive elements with a red bonding box
@@ -129,8 +131,8 @@ const annotateAllInteractiveElements = async (page: Page) => {
         if (isElementVisible(element)) {
           // set a unique identifier attribute to the element
           // this attribute will be used to identify the element that puppeteer should interact with
-          setUniqueIdentifierBasedOnTextContent(element);
         }
+        setUniqueIdentifierBasedOnTextContent(element);
       }
     }
   );

@@ -6,5 +6,6 @@ namespace NodeJS {
     GOOGLE_CHROME_CANARY_USER_DATA_DIR: string;
     PROFILE: string;
     OPENAI_API_KEY: string;
+    OPENAI_MODEL: string;
   }
 }

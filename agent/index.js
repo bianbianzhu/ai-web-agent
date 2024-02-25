@@ -175,6 +175,70 @@ const cleanUpTextContent = (text) => text.replace(/[^a-zA-Z0-9 ]/g, "");
 
 // console.log(innerMost.textContent === "");
 
-document.addEventListener("DOMContentLoaded", () => {
-  console.log("load event");
-});
+// document.addEventListener("DOMContentLoaded", () => {
+//   console.log("load event");
+// });
+
+const URI_PREFIX = "data:image/jpeg;base64,";
+const RESPONSE_URL_START_INDICATOR = '{"url":';
+const RESPONSE_CLICK_START_INDICATOR = '{"click":';
+const RESPONSE_END_INDICATOR = "}";
+
+const isValidJson = (string) => {
+  try {
+    JSON.parse(string);
+  } catch (err) {
+    return false;
+  }
+
+  return true;
+};
+
+const extractContentFromString = (string, type) => {
+  if (string === null) {
+    throw new Error("extractContentFromString: Invalid string - null");
+  }
+
+  if (isValidJson(string)) {
+    const parsedObject = JSON.parse(string);
+    return type in parsedObject ? parsedObject[type] : null;
+  }
+
+  // to resolve potential response message text like 'The url is {"url": "url goes here"}'
+  if (string.includes(RESPONSE_URL_START_INDICATOR) && type === "url") {
+    return string
+      .split(RESPONSE_URL_START_INDICATOR)[1]
+      .split(RESPONSE_END_INDICATOR)[0];
+  }
+
+  // to resolve potential response message text like 'Click on the link {"click": "Link text"}'
+  if (string.includes(RESPONSE_CLICK_START_INDICATOR) && type === "click") {
+    return string
+      .split(RESPONSE_CLICK_START_INDICATOR)[1]
+      .split(RESPONSE_END_INDICATOR)[0];
+  }
+
+  return null;
+};
+
+const shouldContinueLoop = (responseMessageText) => {
+  const isResponseWithURL =
+    extractContentFromString(responseMessageText, "url") !== null;
+  const isResponseWithLinkText =
+    extractContentFromString(responseMessageText, "click") !== null;
+
+  console.log(isResponseWithURL);
+  console.log(isResponseWithLinkText);
+
+  if (isResponseWithURL || isResponseWithLinkText) {
+    return true;
+  }
+
+  if (responseMessageText === "initial message") {
+    return true;
+  }
+
+  return false;
+};
+
+console.log(shouldContinueLoop('This is {"url": '));

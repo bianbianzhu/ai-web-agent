@@ -6,6 +6,7 @@ import {
 export const staticMessageMap = {
   welcome: "Hi, how can I help you today?",
   you: "You: ",
+  agent: "Agent: ",
 } as const;
 
 // TODO: what is the best way to define the type of the promptMap?

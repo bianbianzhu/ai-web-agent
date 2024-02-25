@@ -49,6 +49,21 @@ export const isValidURL = (txt: string | undefined) => {
 };
 
 /**
+ * This function is used to check if the given string is a valid JSON
+ * @param string - The string to check
+ * @returns A boolean indicating whether the string is a valid JSON
+ */
+export const isValidJson = (string: string) => {
+  try {
+    JSON.parse(string);
+  } catch (err) {
+    return false;
+  }
+
+  return true;
+};
+
+/**
  * this function is to check if the given element is visible style wise
  * @param element
  * @returns boolean
@@ -131,3 +146,25 @@ export const isHTMLElement = (element: Element): element is HTMLElement => {
  */
 export const cleanUpTextContent = (text: string) =>
   text.replace(/[^a-zA-Z0-9 ]/g, "");
+
+/**
+ * This function is used to wait for a specific event to occur on the page
+ * @param page
+ * @param eventType
+ */
+export const waitForEvent = async (
+  page: Page,
+  eventType: keyof DocumentEventMap
+) => {
+  // remember, all variables declared in the node context are not accessible in the browser context. However, you can pass them as arguments to the pageFunction - The 2nd argument which is after the pageFunction. In this case, we are passing the eventType; otherwise, Error [ReferenceError]: eventType is not defined
+  return page.evaluate(
+    (eventType) =>
+      new Promise<string>((resolve) => {
+        document.addEventListener(eventType, () => {
+          resolve(`Event: ${eventType} occurred`);
+          return;
+        });
+      }),
+    eventType
+  );
+};
