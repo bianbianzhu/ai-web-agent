@@ -20,21 +20,22 @@ const messages: ChatCompletionMessageParam[] = [];
 // let hasUrl: boolean = false;
 // let hasScreenShotTaken: boolean = false;
 
-// STEP 1: Welcome the user and ask for his/her query
+// STEP 1: Welcome the user
 console.log(staticMessageMap.welcome);
-const userPrompt = await userPromptInterfaceV2(staticMessageMap.you);
 
 // STEP 2: provide the context of the conversation
 messages.push(promptMap.context());
-
-// STEP 3: Apply the user's query as a task
-messages.push(promptMap.task(userPrompt));
 
 const taskFlow = async (messages: ChatCompletionMessageParam[]) => {
   let responseMessage: ResponseMessage = {
     type: ResponseMessageCategory.INITIAL,
     text: "initial",
   };
+
+  // STEP 3: Ask and apply the user's query as a task
+  const userPrompt = await userPromptInterfaceV2(staticMessageMap.you);
+  messages.push(promptMap.task(userPrompt));
+
   const { browser, page } = await initController();
 
   //==================================LOOP==================================
@@ -108,12 +109,7 @@ const taskFlow = async (messages: ChatCompletionMessageParam[]) => {
   // need to save the last url in case the flow fires again
 };
 
-await taskFlow(messages);
+await taskFlow([...messages]);
 //==================================LOOP END===============================
 
-const followUpPrompt = await userPromptInterfaceV2(staticMessageMap.you);
-messages.push(promptMap.task(followUpPrompt));
-
-while (followUpPrompt.includes("continue")) {
-  await taskFlow(messages);
-}
+await taskFlow([...messages]);
