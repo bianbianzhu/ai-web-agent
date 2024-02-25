@@ -110,15 +110,19 @@ export const clickNavigationAndScreenshot = async (
   linkText: string,
   page: Page
 ) => {
-  await Promise.all([page.waitForNavigation(), clickOnLink(linkText, page)]);
-  console.log(`...Highlight all interactive elements`);
-  await highlightInteractiveElements(page);
+  try {
+    await Promise.all([page.waitForNavigation(), clickOnLink(linkText, page)]);
+    console.log(`...Highlight all interactive elements`);
+    await highlightInteractiveElements(page);
 
-  console.log(`...Taking screenshot`);
-  await page.screenshot({
-    path: imagePath,
-    fullPage: true,
-  });
+    console.log(`...Taking screenshot`);
+    await page.screenshot({
+      path: imagePath,
+      fullPage: true,
+    });
 
-  return imagePath;
+    return imagePath;
+  } catch (err) {
+    console.log(`Error navigating and taking screenshot: ${err}`);
+  }
 };
