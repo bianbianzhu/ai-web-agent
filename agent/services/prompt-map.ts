@@ -29,7 +29,7 @@ export const promptMap = {
 
         Once you are on a URL and you have found the answer to the user's question, you can answer with a regular message.
 
-        Use google search by set a sub-page like 'https://google.com/search?q=search' if applicable. Prefer to use Google for simple queries. If the user provides a direct URL, go to that one. Do not make up links`,
+        Use google search by set a sub-page like 'https://www.google.com/search?q=search' if applicable. Prefer to use Google for simple queries. If the user provides a direct URL, go to that one. Do not make up links`,
   }),
   instruction: (
     image_url: ChatCompletionContentPartImage.ImageURL

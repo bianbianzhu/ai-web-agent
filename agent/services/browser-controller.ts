@@ -2,7 +2,7 @@ import dotenv from "dotenv";
 dotenv.config();
 import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
-import { isHTMLElement, isValidURL } from "../utils.js";
+import { isValidURL } from "../utils.js";
 import { Page } from "puppeteer";
 
 import { highlightInteractiveElements } from "./element-annotator.js";
@@ -46,16 +46,18 @@ export const initController = async () => {
  * @returns A promise that resolves to the path of the screenshot
  */
 export const screenshot = async (url: string, page: Page) => {
-  if (!isValidURL(url)) {
-    throw new Error("Invalid URL");
-  }
-
   console.log(`...Opening ${url}`);
+  if (!isValidURL(url)) {
+    throw new Error(`Invalid URL: ${url}`);
+  }
 
   // TODO: What is the best way to wait for the page to load completely for a screenshot?
   // TODO: currently, we have `waitTillHTMLRendered`, `sleep`, and `waifForEvent` functions
   //  wait 500 ms after the number of active network requests are 2
-  await page.goto(url, { waitUntil: "networkidle2", timeout: TIMEOUT });
+  await page.goto(url, {
+    waitUntil: "networkidle2",
+    timeout: TIMEOUT,
+  });
 
   console.log(`...Highlight all interactive elements`);
   await highlightInteractiveElements(page);
@@ -73,12 +75,9 @@ export const screenshot = async (url: string, page: Page) => {
   }
 };
 
-export const clickOnLink = async (linkText: string, page: Page) => {
-  console.log(`...Clicking on link with text: ${linkText}`);
-
+const clickOnLink = async (linkText: string, page: Page) => {
   try {
-    const imagePath = await page.evaluate(async (linkText) => {
-      const imagePath = "./agent/web-agent-screenshot.jpg";
+    await page.evaluate(async (linkText) => {
       const isHTMLElement = (element: Element): element is HTMLElement => {
         return element instanceof HTMLElement;
       };
@@ -86,30 +85,40 @@ export const clickOnLink = async (linkText: string, page: Page) => {
 
       for (const element of elements) {
         if (!isHTMLElement(element)) {
+          continue;
+        }
+
+        if (
+          element
+            .getAttribute("gpt-link-text")
+            ?.includes(linkText.toLowerCase())
+        ) {
+          element.click();
           return;
         }
-
-        if (element.getAttribute("gpt-link-text")?.includes(linkText)) {
-          await Promise.all([page.waitForNavigation(), element.click()]);
-
-          console.log(`...Highlight all interactive elements`);
-          await highlightInteractiveElements(page);
-
-          console.log(`...Taking screenshot`);
-          await page.screenshot({
-            path: imagePath,
-            fullPage: true,
-          });
-
-          return imagePath;
-        } else {
-          throw new Error(`Link with text: ${linkText} not found`);
-        }
       }
-    }, linkText);
 
-    return imagePath;
+      // only if the loop ends without returning
+      throw new Error(`Link with text "${linkText}" not found`);
+    }, linkText);
   } catch (err) {
     console.log(`Error clicking on link: ${err}`);
   }
+};
+
+export const clickNavigationAndScreenshot = async (
+  linkText: string,
+  page: Page
+) => {
+  await Promise.all([page.waitForNavigation(), clickOnLink(linkText, page)]);
+  console.log(`...Highlight all interactive elements`);
+  await highlightInteractiveElements(page);
+
+  console.log(`...Taking screenshot`);
+  await page.screenshot({
+    path: imagePath,
+    fullPage: true,
+  });
+
+  return imagePath;
 };

@@ -114,7 +114,10 @@ const annotateAllInteractiveElements = async (page: Page) => {
             ? `${tagName}-${crypto.randomUUID()}`
             : cleanUpTextContent(textContent).trim();
 
-        element.setAttribute(UNIQUE_IDENTIFIER_ATTRIBUTE, linkText);
+        element.setAttribute(
+          UNIQUE_IDENTIFIER_ATTRIBUTE,
+          linkText.toLowerCase()
+        );
       };
 
       //========================================HIGHLIGHT INTERACTIVE ELEMENTS================================================

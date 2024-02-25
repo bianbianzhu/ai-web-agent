@@ -1,6 +1,6 @@
 import { ChatCompletionMessageParam } from "openai/resources/index.mjs";
 import {
-  clickOnLink,
+  clickNavigationAndScreenshot,
   initController,
   screenshot,
 } from "./services/browser-controller.js";
@@ -11,15 +11,14 @@ import {
   ResponseMessage,
   ResponseMessageCategory,
   convertTextToResponseMessage,
-  extractActionFromString,
   imageToBase64String,
   shouldContinueLoop,
 } from "./services/data-transformer.js";
 import { cleanUpTextContent } from "./utils.js";
 
 const messages: ChatCompletionMessageParam[] = [];
-let hasUrl: boolean = false;
-let hasScreenShotTaken: boolean = false;
+// let hasUrl: boolean = false;
+// let hasScreenShotTaken: boolean = false;
 let responseMessage: ResponseMessage = {
   type: ResponseMessageCategory.INITIAL,
   text: "initial",
@@ -44,6 +43,7 @@ while (shouldContinueLoop(responseMessage)) {
     model: "gpt-4-vision-preview",
     max_tokens: 1024,
     messages,
+    temperature: 0.2,
   });
 
   // For the initial conversation, the agent will provide the url (google search if not provided by the user)
@@ -82,7 +82,7 @@ while (shouldContinueLoop(responseMessage)) {
 
     const cleanLinkText = cleanUpTextContent(linkText);
 
-    const imagePath = await clickOnLink(cleanLinkText, page);
+    const imagePath = await clickNavigationAndScreenshot(cleanLinkText, page);
 
     if (imagePath === undefined) {
       throw new Error("The screenshot path is undefined");

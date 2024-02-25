@@ -37,10 +37,10 @@ const RESPONSE_MESSAGE_ACTION_START_INDICATOR: Record<
   ResponseActionMessageCategory,
   string
 > = {
-  [ResponseMessageCategory.URL]: '{"url":',
-  [ResponseMessageCategory.CLICK]: '{"click":',
+  [ResponseMessageCategory.URL]: '{"url": "',
+  [ResponseMessageCategory.CLICK]: '{"click": "',
 };
-const RESPONSE_MESSAGE_ACTION_END_INDICATOR = "}";
+const RESPONSE_MESSAGE_ACTION_END_INDICATOR = '"}';
 
 /**
  * This service takes the path to an image file and returns a base64 string. Transform the image into a format that can be processed by the GPT model

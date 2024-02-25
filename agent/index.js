@@ -241,4 +241,52 @@ const shouldContinueLoop = (responseMessageText) => {
   return false;
 };
 
-console.log(shouldContinueLoop('This is {"url": '));
+// console.log(shouldContinueLoop('This is {"url": '));
+
+`https://google.com/search?q=Selina+Li+Zhuohang+Li+Melbourne+working+experience`;
+
+const isValidURL = (txt) => {
+  if (txt === undefined) {
+    return false;
+  }
+  const pattern = new RegExp(
+    "^(https?:\\/\\/)" + // protocol
+      "((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|" + // domain name and extension
+      "((\\d{1,3}\\.){3}\\d{1,3}))" + // OR ip (v4) address
+      "(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*" + // port and path
+      "(\\?[;&a-z\\d%_.~+=-]*)?" + // query string
+      "(\\#[-a-z\\d_]*)?$",
+    "i"
+  );
+
+  return pattern.test(txt);
+};
+
+// console.log(
+//   isValidURL(`https://google.com/search?q=Selina+Li+Zhuohang+Li+Melbourne1`)
+// );
+
+const extractActionFromString = (string, type) => {
+  let action = null;
+
+  if (isValidJson(string)) {
+    const parsedObject = JSON.parse(string);
+    action = type in parsedObject ? parsedObject[type] : null;
+  }
+
+  // to resolve potential response message text like 'The url is {"url": "url goes here"}'
+  if (action === null && string.includes('{"url":')) {
+    action = string.split('{"url":')[1].split("}")[0];
+  }
+
+  return action;
+};
+
+console.log(
+  extractActionFromString(
+    `Sure, I can help with that. I will perform a Google search to find a good fictional movie about Mars. Please wait a moment. 
+
+{"url": "https://www.google.com/search?q=good+fictional+movie+about+mars"}`,
+    "url"
+  )
+);
