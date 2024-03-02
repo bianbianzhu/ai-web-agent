@@ -20,9 +20,20 @@ messages.push(promptMap.task(userPrompt));
 
 const { browser, page } = await initController();
 
+// Connect to Chrome DevTools
+// const client = await page.target().createCDPSession();
+
+// // Set throttling property
+// await client.send("Network.emulateNetworkConditions", {
+//   offline: false,
+//   downloadThroughput: (1024 * 1024) / 8,
+//   uploadThroughput: (250 * 1024) / 8,
+//   latency: 150,
+// });
+
 await screenshot(
-  "https://www.google.com/search?q=good+fictional+movies+about+mars",
+  "https://www.officeworks.com.au/shop/officeworks/c/technology",
   page
 );
 
-await clickNavigationAndScreenshot("Set Me Free", page);
+await clickNavigationAndScreenshot("Computers – Apple MacBooks & iMacs", page);

@@ -2,15 +2,18 @@ import dotenv from "dotenv";
 dotenv.config();
 import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
-import { isValidURL } from "../utils.js";
+import {
+  isPageExplicitlyLoading,
+  isValidURL,
+  waitTillHTMLRendered,
+} from "../utils.js";
 import { Page } from "puppeteer";
-
 import { highlightInteractiveElements } from "./element-annotator.js";
 
 /**
  * This 10s timeout is the maximum time to wait for the page to load
  */
-export const TIMEOUT = 10000;
+export const TIMEOUT = 15000;
 
 const imagePath = "./agent/web-agent-screenshot.jpg" as const;
 
@@ -58,6 +61,11 @@ export const screenshot = async (url: string, page: Page) => {
     waitUntil: "networkidle2",
     timeout: TIMEOUT,
   });
+
+  // waitUntil is not enough to wait for the page to load completely, so we need to use waitTillHTMLRendered
+  const isLoading = await isPageExplicitlyLoading(page);
+
+  isLoading && (await waitTillHTMLRendered(page));
 
   console.log(`...Highlight all interactive elements`);
   await highlightInteractiveElements(page);
@@ -112,6 +120,11 @@ export const clickNavigationAndScreenshot = async (
 ) => {
   try {
     await Promise.all([page.waitForNavigation(), clickOnLink(linkText, page)]);
+
+    const isLoading = await isPageExplicitlyLoading(page);
+
+    isLoading && (await waitTillHTMLRendered(page));
+
     console.log(`...Highlight all interactive elements`);
     await highlightInteractiveElements(page);
 

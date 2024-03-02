@@ -51,6 +51,7 @@ const annotateAllInteractiveElements = async (page: Page) => {
       //======================================VALIDATE ELEMENT CAN INTERACT=================================================
       // This run-time check must be defined inside the pageFunction as it is running in the browser context. If defined outside, it will throw an error: "ReferenceError: isHTMLElement is not defined"
       const isHTMLElement = (element: Element): element is HTMLElement => {
+        // this assertion is to allow Element to be treated as HTMLElement and has `style` property
         return element instanceof HTMLElement;
       };
 
@@ -91,12 +92,13 @@ const annotateAllInteractiveElements = async (page: Page) => {
 
           currentElement = currentElement.parentElement;
         }
-        return isElementInViewport(element);
+        // return isElementInViewport(element); //disable the inViewport check for now
+        return true;
       };
 
       //========================================PREPARE UNIQUE IDENTIFIER================================================
 
-      // clean up the input text by removing any characters that are not alphanumeric (letters and numbers) or spaces.
+      // clean up the text by removing any characters that are not alphanumeric (letters and numbers) or spaces.
       // Does not support non-English characters; Set the language of the page to English to avoid issues
       const cleanUpTextContent = (text: string) =>
         text.replace(/[^a-zA-Z0-9 ]/g, "");
@@ -109,22 +111,19 @@ const annotateAllInteractiveElements = async (page: Page) => {
           return;
         }
 
-        const linkText =
-          textContent.trim() === ""
-            ? `${tagName}-${crypto.randomUUID()}`
-            : cleanUpTextContent(textContent).trim();
+        // there is no way for the llm to point a element without textContent, like a button with an icon (assumably), the following logic is disabled for now
+        // const linkText =
+        //   textContent.trim() === ""
+        //     ? `${tagName}-${crypto.randomUUID()}`
+        //     : cleanUpTextContent(textContent).trim();
 
         element.setAttribute(
           UNIQUE_IDENTIFIER_ATTRIBUTE,
-          linkText.toLowerCase()
+          textContent.toLowerCase()
         );
       };
 
       //========================================HIGHLIGHT INTERACTIVE ELEMENTS================================================
-
-      // TODO: give all bounding box but only give visible elements unique id????
-      // TODO: only the elements with unique id would be interacted by the puppeteer
-      // TODO: what is the purpose of highlighting all the interactive elements?
       for (const element of elements) {
         if (isHTMLElement(element)) {
           // highlight all the interactive elements with a red bonding box
@@ -134,8 +133,8 @@ const annotateAllInteractiveElements = async (page: Page) => {
         if (isElementVisible(element)) {
           // set a unique identifier attribute to the element
           // this attribute will be used to identify the element that puppeteer should interact with
+          setUniqueIdentifierBasedOnTextContent(element);
         }
-        setUniqueIdentifierBasedOnTextContent(element);
       }
     }
   );

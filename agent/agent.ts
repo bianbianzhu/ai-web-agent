@@ -85,9 +85,9 @@ const taskFlow = async (messages: ChatCompletionMessageParam[]) => {
     if (responseMessage.type === ResponseMessageCategory.CLICK) {
       const { linkText } = responseMessage;
 
-      const cleanLinkText = cleanUpTextContent(linkText);
+      // const cleanLinkText = cleanUpTextContent(linkText);
 
-      const imagePath = await clickNavigationAndScreenshot(cleanLinkText, page);
+      const imagePath = await clickNavigationAndScreenshot(linkText, page);
 
       if (imagePath === undefined) {
         throw new Error("The screenshot path is undefined");
@@ -107,9 +107,11 @@ const taskFlow = async (messages: ChatCompletionMessageParam[]) => {
 
   await browser.close();
   // need to save the last url in case the flow fires again
+
+  return messages;
 };
 
-await taskFlow([...messages]);
+const preMessages = await taskFlow([...messages]);
 //==================================LOOP END===============================
 
-await taskFlow([...messages]);
+await taskFlow(preMessages);
