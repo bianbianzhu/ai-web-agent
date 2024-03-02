@@ -101,16 +101,21 @@ const clickOnLink = async (linkText: string, page: Page) => {
             .getAttribute("gpt-link-text")
             ?.includes(linkText.toLowerCase())
         ) {
+          element.style.backgroundColor = "rgba(255,255,0,0.25)";
           element.click();
           return;
         }
       }
 
       // only if the loop ends without returning
-      throw new Error(`Link with text "${linkText}" not found`);
+      throw new Error(`Link with text not found: "${linkText}" `);
     }, linkText);
   } catch (err) {
-    console.log(`Error clicking on link: ${err}`);
+    // console.log(`Error clicking on link: ${err}`);
+    if (err instanceof Error) {
+      // must rethrow the error so that it can be caught in the calling function
+      throw err;
+    }
   }
 };
 
