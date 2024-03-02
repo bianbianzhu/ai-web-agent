@@ -17,8 +17,6 @@ import {
 import { cleanUpTextContent } from "./utils.js";
 
 const messages: ChatCompletionMessageParam[] = [];
-// let hasUrl: boolean = false;
-// let hasScreenShotTaken: boolean = false;
 
 // STEP 1: Welcome the user
 console.log(staticMessageMap.welcome);
@@ -26,26 +24,27 @@ console.log(staticMessageMap.welcome);
 // STEP 2: provide the context of the conversation
 messages.push(promptMap.context());
 
-const taskFlow = async (messages: ChatCompletionMessageParam[]) => {
+// STEP 3: Ask and apply the user's query as a task
+const userPrompt = await userPromptInterfaceV2(staticMessageMap.you);
+messages.push(promptMap.task(userPrompt));
+
+const { browser, page } = await initController();
+
+const taskFlow = async (): Promise<void> => {
   let responseMessage: ResponseMessage = {
     type: ResponseMessageCategory.INITIAL,
     text: "initial",
   };
 
-  // STEP 3: Ask and apply the user's query as a task
-  const userPrompt = await userPromptInterfaceV2(staticMessageMap.you);
-  messages.push(promptMap.task(userPrompt));
-
-  const { browser, page } = await initController();
-
   //==================================LOOP==================================
 
   while (shouldContinueLoop(responseMessage)) {
+    console.log(`${staticMessageMap.agent}Let me think...`);
     const response = await openai.chat.completions.create({
       model: "gpt-4-vision-preview",
       max_tokens: 1024,
       messages,
-      temperature: 0.2,
+      temperature: 0,
     });
 
     // For the initial conversation, the agent will provide the url (google search if not provided by the user)
@@ -105,13 +104,15 @@ const taskFlow = async (messages: ChatCompletionMessageParam[]) => {
     }
   }
 
-  await browser.close();
-  // need to save the last url in case the flow fires again
-
-  return messages;
+  const followUpPrompt = await userPromptInterfaceV2(staticMessageMap.you);
+  if (followUpPrompt === "" || followUpPrompt === "exit") {
+    console.log(`${staticMessageMap.agent}Goodbye!`);
+    return browser.close();
+  } else {
+    messages.push(promptMap.task(followUpPrompt));
+    return taskFlow();
+  }
 };
 
-const preMessages = await taskFlow([...messages]);
+await taskFlow();
 //==================================LOOP END===============================
-
-await taskFlow(preMessages);
