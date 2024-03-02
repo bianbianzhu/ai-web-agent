@@ -141,6 +141,8 @@ export const clickNavigationAndScreenshot = async (
 
     return imagePath;
   } catch (err) {
-    console.log(`Error navigating and taking screenshot: ${err}`);
+    if (err instanceof Error) {
+      throw err;
+    }
   }
 };

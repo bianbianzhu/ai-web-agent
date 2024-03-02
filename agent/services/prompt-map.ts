@@ -50,4 +50,8 @@ export const promptMap = {
     role: "user",
     content: userInterfacePrompt,
   }),
+  retryIfLinkNotFound: (linkText: string): ChatCompletionMessageParam => ({
+    role: "system",
+    content: `Link with text "${linkText}" not found. Please change to another one.`,
+  }),
 };

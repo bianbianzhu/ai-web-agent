@@ -86,21 +86,34 @@ const taskFlow = async (): Promise<void> => {
 
       // const cleanLinkText = cleanUpTextContent(linkText);
 
-      const imagePath = await clickNavigationAndScreenshot(linkText, page);
+      try {
+        const imagePath = await clickNavigationAndScreenshot(linkText, page);
+        if (imagePath === undefined) {
+          throw new Error("The screenshot path is undefined");
+        }
 
-      if (imagePath === undefined) {
-        throw new Error("The screenshot path is undefined");
+        const base64String = await imageToBase64String(imagePath);
+        messages.push(
+          promptMap.instruction({
+            url: base64String,
+            detail: "auto",
+          })
+        );
+
+        continue;
+      } catch (err) {
+        if (
+          err instanceof Error &&
+          err.message.includes("Link with text not found")
+        ) {
+          console.log(`...Error clicking on link: ${err.message}`);
+          messages.push(promptMap.retryIfLinkNotFound(linkText));
+          continue;
+        } else {
+          console.log(`...Unexpected error: ${err}. Please try again.`);
+          break;
+        }
       }
-
-      const base64String = await imageToBase64String(imagePath);
-      messages.push(
-        promptMap.instruction({
-          url: base64String,
-          detail: "auto",
-        })
-      );
-
-      continue;
     }
   }
 
