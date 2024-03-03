@@ -10,6 +10,7 @@ const INTERACTIVE_ELEMENTS = [
   "textarea",
   "[role=button]",
   "[role=treeitem]",
+  '[onclick]:not([onclick=""])',
 ];
 
 /**
