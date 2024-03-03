@@ -120,7 +120,7 @@ const annotateAllInteractiveElements = async (page: Page) => {
 
         element.setAttribute(
           UNIQUE_IDENTIFIER_ATTRIBUTE,
-          textContent.toLowerCase()
+          textContent.trim().toLowerCase()
         );
       };
 

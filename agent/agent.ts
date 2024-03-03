@@ -87,7 +87,11 @@ const taskFlow = async (): Promise<void> => {
       // const cleanLinkText = cleanUpTextContent(linkText);
 
       try {
-        const imagePath = await clickNavigationAndScreenshot(linkText, page);
+        const imagePath = await clickNavigationAndScreenshot(
+          linkText,
+          page,
+          browser
+        );
         if (imagePath === undefined) {
           throw new Error("The screenshot path is undefined");
         }
@@ -118,7 +122,7 @@ const taskFlow = async (): Promise<void> => {
   }
 
   const followUpPrompt = await userPromptInterfaceV2(staticMessageMap.you);
-  if (followUpPrompt === "" || followUpPrompt === "exit") {
+  if (followUpPrompt === "" || followUpPrompt.includes("exit")) {
     console.log(`${staticMessageMap.agent}Goodbye!`);
     return browser.close();
   } else {

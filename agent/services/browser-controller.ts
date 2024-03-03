@@ -7,7 +7,7 @@ import {
   isValidURL,
   waitTillHTMLRendered,
 } from "../utils.js";
-import { Page } from "puppeteer";
+import { Browser, Page } from "puppeteer";
 import { highlightInteractiveElements } from "./element-annotator.js";
 
 /**
@@ -53,39 +53,61 @@ export const screenshot = async (url: string, page: Page) => {
   if (!isValidURL(url)) {
     throw new Error(`Invalid URL: ${url}`);
   }
-
-  // TODO: What is the best way to wait for the page to load completely for a screenshot?
-  // TODO: currently, we have `waitTillHTMLRendered`, `sleep`, and `waifForEvent` functions
-  //  wait 500 ms after the number of active network requests are 2
-  await page.goto(url, {
-    waitUntil: "networkidle2",
-    timeout: TIMEOUT,
-  });
-
-  // waitUntil is not enough to wait for the page to load completely, so we need to use waitTillHTMLRendered
-  const isLoading = await isPageExplicitlyLoading(page);
-
-  isLoading && (await waitTillHTMLRendered(page));
-
-  console.log(`...Highlight all interactive elements`);
-  await highlightInteractiveElements(page);
-
   try {
-    console.log(`...Taking screenshot`);
-    await page.screenshot({
-      //path: "/agent/web-agent-screenshot.jpg" is a wrong path
-      path: imagePath,
-      fullPage: true,
+    // TODO: What is the best way to wait for the page to load completely for a screenshot?
+    // TODO: currently, we have `waitTillHTMLRendered`, `sleep`, and `waifForEvent` functions
+    //  wait 500 ms after the number of active network requests are 2
+    await page.goto(url, {
+      waitUntil: "networkidle2",
+      timeout: TIMEOUT,
     });
+
+    // waitUntil is not enough to wait for the page to load completely, so we need extra logic to wait for the page to load
+    const imagePath = await waitAndScreenshot(page);
     return imagePath;
   } catch (err) {
     console.log(`Error taking screenshot: ${err}`);
   }
 };
 
+export const clickNavigationAndScreenshot = async (
+  linkText: string,
+  page: Page,
+  browser: Browser
+) => {
+  let imagePath;
+  try {
+    // To use a if statement to check if the link opens in a new tab, Promise.all cannot be used
+    // await Promise.all([page.waitForNavigation(), clickOnLink(linkText, page)]);
+
+    // change to this:
+    const navigationPromise = page.waitForNavigation();
+    const clickResponse = await clickOnLink(linkText, page);
+    if (!clickResponse) {
+      await navigationPromise;
+      imagePath = await waitAndScreenshot(page);
+    } else {
+      // if the link opens in a new tab, ignore the navigationPromise as there won't be any navigation
+      // MUST NOT USE `AWAIT` HERE, otherwise it will wait the default timeout of 30s
+      navigationPromise.catch(() => undefined);
+      const newPage = await newTabNavigation(clickResponse, page, browser);
+
+      if (newPage === undefined) {
+        throw new Error("The new page cannot be opened");
+      }
+
+      imagePath = await waitAndScreenshot(newPage);
+    }
+
+    return imagePath;
+  } catch (err) {
+    throw err;
+  }
+};
+
 const clickOnLink = async (linkText: string, page: Page) => {
   try {
-    await page.evaluate(async (linkText) => {
+    const clickResponse = await page.evaluate(async (linkText) => {
       const isHTMLElement = (element: Element): element is HTMLElement => {
         return element instanceof HTMLElement;
       };
@@ -99,8 +121,12 @@ const clickOnLink = async (linkText: string, page: Page) => {
         if (
           element
             .getAttribute("gpt-link-text")
-            ?.includes(linkText.toLowerCase())
+            ?.includes(linkText.trim().toLowerCase()) // align with `setUniqueIdentifierAttribute` in `element-annotator.ts`
         ) {
+          if (element.getAttribute("target") === "_blank") {
+            return element.getAttribute("gpt-link-text");
+          }
+
           element.style.backgroundColor = "rgba(255,255,0,0.25)";
           element.click();
           return;
@@ -108,8 +134,10 @@ const clickOnLink = async (linkText: string, page: Page) => {
       }
 
       // only if the loop ends without returning
-      throw new Error(`Link with text not found: "${linkText}" `);
+      throw new Error(`Link with text not found: "${linkText}"`);
     }, linkText);
+
+    return clickResponse;
   } catch (err) {
     // console.log(`Error clicking on link: ${err}`);
     if (err instanceof Error) {
@@ -119,30 +147,62 @@ const clickOnLink = async (linkText: string, page: Page) => {
   }
 };
 
-export const clickNavigationAndScreenshot = async (
-  linkText: string,
-  page: Page
+const newTabNavigation = async (
+  gptLinkText: string,
+  page: Page,
+  browser: Browser
 ) => {
   try {
-    await Promise.all([page.waitForNavigation(), clickOnLink(linkText, page)]);
+    // store the target of original page to know that this was the opener:
+    const currentPageTarget = page.target();
 
-    const isLoading = await isPageExplicitlyLoading(page);
+    // execute click on the current page that triggers opening of new tab (new page):
+    const element = await page.$(`[gpt-link-text="${gptLinkText}"]`);
 
-    isLoading && (await waitTillHTMLRendered(page));
+    if (element === null) {
+      throw new Error("The element is null");
+    }
 
-    console.log(`...Highlight all interactive elements`);
-    await highlightInteractiveElements(page);
+    element.click();
 
-    console.log(`...Taking screenshot`);
-    await page.screenshot({
-      path: imagePath,
-      fullPage: true,
-    });
+    // check if the new page is opened by the current page:
+    const newPageTarget = await browser.waitForTarget(
+      (target) => target.opener() === currentPageTarget
+    );
 
-    return imagePath;
+    // switch to the new page:
+    const newPage = await newPageTarget.page();
+
+    if (newPage === null) {
+      throw new Error("The new page is null");
+    }
+
+    // wait for page to be loaded (briefly)
+    await newPage.waitForSelector("body");
+
+    return newPage;
   } catch (err) {
     if (err instanceof Error) {
       throw err;
     }
   }
+};
+
+const waitAndScreenshot = async (page: Page) => {
+  // waitUntil in `GoToOptions` is not enough to wait for the page to load completely (especially with dynamic loading content), so we need to use waitTillHTMLRendered
+  const isLoading = await isPageExplicitlyLoading(page);
+
+  isLoading && (await waitTillHTMLRendered(page));
+
+  console.log(`...Highlight all interactive elements`);
+  await highlightInteractiveElements(page);
+
+  console.log(`...Taking screenshot`);
+  await page.screenshot({
+    //path: "/agent/web-agent-screenshot.jpg" is a wrong path
+    path: imagePath,
+    fullPage: true,
+  });
+
+  return imagePath;
 };
