@@ -16,6 +16,7 @@ import { highlightInteractiveElements } from "./element-annotator.js";
 export const TIMEOUT = 15000;
 
 const imagePath = "./agent/web-agent-screenshot.jpg" as const;
+const browserWindowSize = { width: 900, height: 1600 };
 
 /**
  * This service initializes a new browser session and a new page tab
@@ -32,12 +33,17 @@ export const initController = async () => {
       "--disable-setuid-sandbox",
       "--no-sandbox",
       "--no-zygote",
+      `--window-size=${browserWindowSize.width},${browserWindowSize.height}`,
     ],
   });
 
   const page = await browser.newPage();
 
-  await page.setViewport({ width: 1600, height: 1200, deviceScaleFactor: 1 });
+  await page.setViewport({
+    width: browserWindowSize.width,
+    height: browserWindowSize.height,
+    deviceScaleFactor: 1,
+  });
 
   return { browser, page };
 };

@@ -122,7 +122,7 @@ const taskFlow = async (): Promise<void> => {
   }
 
   const followUpPrompt = await userPromptInterfaceV2(staticMessageMap.you);
-  if (followUpPrompt === "" || followUpPrompt.includes("exit")) {
+  if (followUpPrompt === "" || followUpPrompt.toLowerCase().includes("exit")) {
     console.log(`${staticMessageMap.agent}Goodbye!`);
     return browser.close();
   } else {
