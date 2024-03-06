@@ -6,6 +6,8 @@ In this article, we'll explore and build an AI agent that utilizes the power of 
 
 This agent will be able to interact with the user, control a web browser, and process data. We'll explore its structure and how it works.
 
+### All the code shown in this article can be found in the [Ai Web Agent](https://github.com/bianbianzhu/ai-web-agent)
+
 ## Overview
 
 Imagine you're keen on attending an AI event in your city this month, but you have specific criteria in mind, perhaps related to timing or the focus of the event. Normally, this would involve the following process:
@@ -89,6 +91,46 @@ messages.push(promptMap.context());
 // STEP 3: Ask and apply the user's query as a task - user task prompt
 const userPrompt = await userPromptInterfaceV2(staticMessageMap.you);
 messages.push(promptMap.task(userPrompt));
+```
+
+The following function creates the interface in the terminal for the user to input their query.
+
+```typescript
+/**
+ * This service creates a user prompt interface and returns a promise that resolves to the user's input. Allow user to input in the `terminal`.
+ * @param query
+ * @returns A promise that resolves to the user's input
+ */
+export const userPromptInterfaceV2 = async (query: string) => {
+  // Create an interface to read input from the user
+  const userInterface = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  // Return a promise that resolves to the user's input
+  // The userInterface.question method takes a query and a callback function
+  // The reason for using a promise is to make the user's input accessible outside of the callback function
+  return new Promise<string>((resolve) => {
+    userInterface.question(query, (input) => {
+      resolve(input);
+      userInterface.close(); // Close the user interface
+    });
+  });
+};
+```
+
+And you may notice the `promptMap` object in the code. It is a map of functions that returns all the prompts. Making it a function allows the prompts to be dynamic and change based on the context of the conversation. Here is an example:
+
+```typescript
+export const promptMap = {
+  context: (
+    role: "teacher" | "student" | "AI"
+  ): ChatCompletionMessageParam => ({
+    role: "system",
+    content: `You are a ${role}. You will be given instructions on what to do by browsing. You are connected to a web browser and you will be given the screenshot of the website you are on.`,
+  }),
+};
 ```
 
 An important note is that to allow the LLM to have the `memory` of the conversation, we need to always push the new prompts to the message array and send the whole array to the LLM. This could cause the explosion of the tokens. Use the `max_tokens` parameter to build the safe net.
@@ -196,7 +238,7 @@ export type ResponseMessage =
       type: ResponseMessageCategory.CLICK;
       linkText: string;
     }
-  // This initial type is simply a placeholder to indicate the start of the conversation in which the LLM has not yet provided a response
+  // This initial type is simply a placeholder to indicate the start of the conversation in which the LLM has not yet provided a response (not relevant to the path selection logic)
   | {
       type: ResponseMessageCategory.INITIAL;
       text: "initial";
@@ -215,6 +257,7 @@ export const convertTextToResponseMessage = (text: string): ResponseMessage => {
   if (extractActionFromString(text, ResponseMessageCategory.URL) !== null) {
     return {
       type: ResponseMessageCategory.URL,
+      // Extract the URL from the response and store it in the `url` property, so it can be accessed easily
       url: extractActionFromString(text, ResponseMessageCategory.URL) as string,
     };
   }
@@ -222,6 +265,7 @@ export const convertTextToResponseMessage = (text: string): ResponseMessage => {
   if (extractActionFromString(text, ResponseMessageCategory.CLICK) !== null) {
     return {
       type: ResponseMessageCategory.CLICK,
+      // Extract the link text from the response and store it in the `linkText` property, so it can be accessed easily
       linkText: extractActionFromString(
         text,
         ResponseMessageCategory.CLICK
@@ -247,9 +291,10 @@ To implement the `Path Selection`, the code should have the following backbone:
 
 ```typescript
 // messageText is the plain string response from the LLM (see above code)
-// It is then converted to the defined type
+// It is then converted to the defined type using the `convertTextToResponseMessage` function
 responseMessage = convertTextToResponseMessage(messageText);
 
+// if-else statement to determine the path based on the response type
 // URL Response Flow
 if (responseMessage.type === ResponseMessageCategory.URL) {
   // 1. Extract the URL from the response
@@ -261,6 +306,7 @@ if (responseMessage.type === ResponseMessageCategory.URL) {
     throw new Error("The screenshot path is undefined");
   }
 
+  // converts the screenshot to a format that LLM accepts
   const base64String = await imageToBase64String(imagePath);
   // 3. Send the screenshot with the instruction prompt back to the LLM
   messages.push(
@@ -269,7 +315,7 @@ if (responseMessage.type === ResponseMessageCategory.URL) {
       detail: "auto",
     })
   );
-  return;
+  return; // end of this path
 }
 
 // Click Response Flow
@@ -291,6 +337,7 @@ if (responseMessage.type === ResponseMessageCategory.CLICK) {
       detail: "auto",
     })
   );
+  return;
 }
 
 // Regular Message Flow - return message directly
@@ -360,6 +407,7 @@ while (shouldContinueLoop(responseMessage)) {
   // +++++ Path Selection +++++
   responseMessage = convertTextToResponseMessage(messageText);
 
+  // URL Response Flow
   if (responseMessage.type === ResponseMessageCategory.URL) {
     const { url } = responseMessage;
     const imagePath = await screenshot(url, page);
@@ -375,10 +423,11 @@ while (shouldContinueLoop(responseMessage)) {
         detail: "auto",
       })
     );
-    // Go through the `URL Response Flow` and continue the loop for the next step
+    // Instead of stopping here, we need to continue the loop for the next step
     continue;
   }
 
+  // Click Response Flow
   if (responseMessage.type === ResponseMessageCategory.CLICK) {
     const { linkText } = responseMessage;
 
@@ -400,7 +449,7 @@ while (shouldContinueLoop(responseMessage)) {
         })
       );
 
-      // Go through the `Click Response Flow` and continue the loop for the next step
+      // continue the loop for the next step
       continue;
     } catch (err) {
       if (
@@ -418,6 +467,12 @@ while (shouldContinueLoop(responseMessage)) {
   }
   // ++++++++++++++++++++++++++++
 }
+```
+
+As you may notice, we didn't specify the regular message flow in the loop. This is because the regular message does not trigger any browser-controller service. It simply ends the loop and displays the message to the user, simply a `console.log` statement. Of course, you can add more logic to the regular message flow such as saving the message to a csv file, etc.
+
+```typescript
+console.log(`${staticMessageMap.agent}${messageText}`);
 ```
 
 [Set-of-Mark Prompting](https://arxiv.org/abs/2310.11441)
