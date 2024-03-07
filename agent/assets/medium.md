@@ -2,11 +2,13 @@
 
 ## Introduction
 
-In this article, we'll explore and build an AI agent that utilizes the power of new `gpt-4-vision-preview` model from OpenAI. The model can analyze images and provide textual responses
+In this article, we'll explore and build an AI agent that utilizes the power of new `gpt-4-vision-preview` model from OpenAI. The model can **analyze images** and provide textual responses.
 
 This agent will be able to interact with the user, control a web browser, and process data. We'll explore its structure and how it works.
 
-### All the code shown in this article can be found in the [Ai Web Agent](https://github.com/bianbianzhu/ai-web-agent)
+This article is inspired by a youtube video [GPT4V + Puppeteer = AI agent browse web like human? 🤖](https://www.youtube.com/watch?v=IXRkmqEYGZA&t=184s) from [AI Jason](https://www.youtube.com/@AIJasonZ).
+
+### All the code shown in this article can be found in the repo [Ai Web Agent](https://github.com/bianbianzhu/ai-web-agent).
 
 ## Overview
 
@@ -183,7 +185,7 @@ export const openai = new OpenAI({
 });
 ```
 
-## Pick the Right Path
+### Pick the Right Path
 
 As we mentioned earlier, the LLM response will be shaped into only 3 types. Each of these types will trigger a different browser-controller service to act accordingly.
 
@@ -200,7 +202,7 @@ As we mentioned earlier, the LLM response will be shaped into only 3 types. Each
 
 <img src="url-response-flow.png" width=600>
 
-## Click Response Flow - Response format `{ "click": "text on a button" }`
+### Click Response Flow - Response format `{ "click": "text on a button" }`
 
 - Indicate that the agent should click on a specific element on the page.
 - The agent will undergo the following steps:
@@ -219,7 +221,7 @@ Credit: [JayZeeDesign](https://github.com/JayZeeDesign/Scrape-anything---Web-AI-
 
 This prompt basically tells the LLM to analyze the screenshot of the page and decide on the next steps. The response format should be exactly as we mentioned in the system prompt. With LLMs, it's often necessary to reiterate rules or guidelines to ensure consistent performance.
 
-## Regular Message Flow - Regular message
+### Regular Message Flow - Regular message
 
 - Indicate that the agent has finished the task and extracted the required information to the user.
 - This is normally the end of the current task.
@@ -452,6 +454,7 @@ while (shouldContinueLoop(responseMessage)) {
       // continue the loop for the next step
       continue;
     } catch (err) {
+      // Handle the error and retry if the link is not found; sometimes the LLM just comes up with a link that doesn't exist or with a typo
       if (
         err instanceof Error &&
         err.message.includes("Link with text not found")
@@ -475,7 +478,362 @@ As you may notice, we didn't specify the regular message flow in the loop. This 
 console.log(`${staticMessageMap.agent}${messageText}`);
 ```
 
-[Set-of-Mark Prompting](https://arxiv.org/abs/2310.11441)
+## Browser Controller Service
+
+Now, we understand how the agent works in general. Let's dive into how it controls the browser - how its hands work.
+A library called `Puppeteer` is used here. It provides a high-level API over the Chrome DevTools Protocol. See the [Puppeteer documentation](https://pptr.dev/) for more details.
+
+Essentially, Puppeteer gets called after the agent receives a response from the LLM. Under different paths as we mentioned above, Puppeteer will be used for different actions.
+
+Overall, the browser-controller service is responsible for the following:
+
+1. Navigating to a URL
+1. Clicking on a link
+1. Taking a screenshot of the page
+
+<img src="pptr.png" width=500>
+
+Wait, there is another one, the service that `annotates HTML elements` for the agent. It can highlight elements with a red bounding box and add unique identifiers to them. This is useful for the agent to understand the content of the page `visually` and make decisions based on it. **With the annotation, the accuracy of the agent's interpretation of the image is largely improved**. This concept is called `Set-of-Mark Prompting`.
+
+Here is an example of the annotated screenshot:
+
+<img src="annotation.png" width=800>
+
+There is a research paper discussing the importance this topic in detail: [Set-of-Mark Prompting](https://arxiv.org/abs/2310.11441) and the code implementation of SOM will be discussed below.
+
+### Code implementation of the browser-controller service
+
+#### Step 1 - Initialize the browser and open a new tab
+
+```typescript
+const browserWindowSize = { width: 900, height: 1600 };
+
+/**
+ * This service initializes a new browser session and a new page tab
+ * @returns An object containing the browser and the page
+ */
+export const initController = async () => {
+  const pup = puppeteer.default.use(StealthPlugin());
+  // launch the browser
+  const browser = await pup.launch({
+    // detailed configurations
+    headless: false, // Determines whether to run the browser in headless mode (without a GUI). boolean | "new" | undefined
+    executablePath: process.env.GOOGLE_CHROME_CANARY_PATH, // path to a browser executable to use instead of the bundled Chromium
+    userDataDir: process.env.GOOGLE_CHROME_CANARY_USER_DATA_DIR, // Path to a user data directory, i.e, the user profile
+    args: [
+      `--profile-directory=${process.env.PROFILE}`, // Select the expected profile
+      "--disable-setuid-sandbox",
+      "--no-sandbox",
+      "--no-zygote",
+      `--window-size=${browserWindowSize.width},${browserWindowSize.height}`,
+    ],
+  });
+
+  // open a new tab
+  const page = await browser.newPage();
+
+  // set the viewport
+  await page.setViewport({
+    width: browserWindowSize.width,
+    height: browserWindowSize.height,
+    deviceScaleFactor: 1,
+  });
+
+  // the initialized browser and page are returned
+  return { browser, page };
+};
+```
+
+#### Step 2 - Navigate to a URL and take a screenshot
+
+```typescript
+export const navigateToURL = async (url: string, page: Page) => {
+  console.log(`...Opening ${url}`);
+  // validate the URL
+  if (!isValidURL(url)) {
+    throw new Error(`Invalid URL: ${url}`);
+  }
+
+  // +++++ go to the URL +++++
+  await page.goto(url, {
+    // a simple logic to determine if the page is loaded: wait 500 ms after the number of active network requests are 2
+    waitUntil: "networkidle2",
+    timeout: TIMEOUT,
+  });
+  // +++++++++++++++++++++++++++
+
+  // +++++ take a screenshot of the page +++++
+  // also include waiting for the page to load completely
+  const imagePath = await waitAndScreenshot(page);
+  // +++++++++++++++++++++++++++++++++++++++++
+
+  return imagePath;
+};
+```
+
+As shown, the navigation to the URL is done via `page.goto()`. This method utilizes the `waitUntil` option for the page load. After the page is loaded, the agent takes a screenshot. It is very crucial to wait for all the visual content to be loaded before taking the screenshot to ensure the agent gets the full info of the page.
+
+Unfortunately, in many cases, the `waitUntil` in `GoToOptions` (page.goto()) is not enough to wait for the page to load completely (especially with dynamic loading content), so we need to use the custom function `waitAndScreenshot`.
+
+This function basically checks if the page is still loading via `document.readyState` or if there is a loading indicator on the page.
+If the page is still loading, the function will call `waitTillHTMLRendered` to undertake a comprehensive check:
+
+1. It checks the HTML size every second.
+1. If the HTML size remains the same for 3 consecutive seconds, it assumes the page has finished loading.
+1. Throw error if the page is still loading after 30 seconds (timeout).
+
+The flowchart below shows the logic of the `waitAndScreenshot` function:
+
+<img src="wait-html-render.gif" width=1000>
+
+To have a better understanding of the `waitAndScreenshot` function, let's take a look at the log of the function in action:
+
+<img src="wait-html-render-log.png" width=400>
+
+After the page is **completely** loaded, all interactive elements are highlighted and a screenshot is taken.
+
+#### code implementation of the `waitAndScreenshot` function
+
+```typescript
+const waitAndScreenshot = async (page: Page) => {
+  // is the page still loading? `document.readyState` === 'loading' or there is a loading indicator on the page
+  const isLoading = await isPageExplicitlyLoading(page);
+
+  // if the page is still loading, wait for the page to load completely
+  isLoading && (await waitTillHTMLRendered(page));
+
+  // apply Set-of-Mark Prompting
+  console.log(`...Highlight all interactive elements`);
+  await highlightInteractiveElements(page);
+
+  // take a screenshot of the page
+  console.log(`...Taking screenshot`);
+  await page.screenshot({
+    //path: "/agent/web-agent-screenshot.jpg" is a wrong path
+    path: imagePath,
+    fullPage: true,
+  });
+
+  return imagePath;
+};
+```
+
+#### code implementation of the `waitTillHTMLRendered` function
+
+```typescript
+export const waitTillHTMLRendered = async (
+  page: Page,
+  timeout: number = 30000,
+  checkOnlyHTMLBody: boolean = false
+) => {
+  const waitTimeBetweenChecks: number = 1000;
+  const maximumChecks: number = timeout / waitTimeBetweenChecks; // assuming check itself does not take time
+  let lastHTMLSize = 0;
+  let stableSizeCount = 0;
+  const COUNT_THRESHOLD = 3;
+
+  const isSizeStable = (currentSize: number, lastSize: number) => {
+    if (currentSize !== lastSize) {
+      return false; // still rendering
+    } else if (currentSize === lastSize && lastSize === 0) {
+      return false; // page remains empty - failed to render
+    } else {
+      return true; // stable
+    }
+  };
+
+  for (let i = 0; i < maximumChecks; i++) {
+    const html = await page.content();
+    const currentHTMLSize = html.length;
+
+    const currentBodyHTMLSize = await page.evaluate(
+      () => document.body.innerHTML.length
+    );
+
+    const currentSize = checkOnlyHTMLBody
+      ? currentBodyHTMLSize
+      : currentHTMLSize;
+
+    // logging
+    console.log(
+      "last: ",
+      lastHTMLSize,
+      " <> curr: ",
+      currentHTMLSize,
+      " body html size: ",
+      currentBodyHTMLSize
+    );
+
+    stableSizeCount = isSizeStable(currentSize, lastHTMLSize)
+      ? stableSizeCount + 1
+      : 0;
+
+    console.log(`Stable size count: ${stableSizeCount}`);
+    // if the HTML size remains the same for 3 consecutive seconds, it assumes the page has finished loading
+    if (stableSizeCount >= COUNT_THRESHOLD) {
+      console.log("Page rendered fully..");
+      break;
+    }
+
+    lastHTMLSize = currentSize;
+    await page.waitForTimeout(waitTimeBetweenChecks);
+  }
+};
+```
+
+Let's look deeper into the `highlightInteractiveElements` function. It is a service that annotates HTML elements for the agent. It can highlight elements with a red bounding box and add unique identifiers to them. This is useful for the agent to understand the content of the page visually and make decisions based on it.
+
+Technically, the function does the following:
+
+1. Remove the unique identifier attribute `gpt-link-text` set previously.
+1. Annotate all the interactive elements, such as links, buttons, and input fields, on the page, by giving them a red outline.
+1. Set a unique identifier attribute to the element. This attribute will be used to identify the element that Puppeteer can later interact with.
+
+Of course, there are other ways to apply Set-of-Mark Prompting. However, when dealing with puppeteer or any other testing framework that programmatically interacts with the web, it is important to know that the element with a targeted link text may not be visible or interactable. Here is a simple example:
+
+```html
+<div style="display: none">
+  <a href="https://www.example.com">
+    <span>Click me</span>
+  </a>
+</div>
+```
+
+If the LLM response is `{"click": "Click me"}`, the agent will not be able to click on the link because the link is not visible. This is where the Set-of-Mark Prompting comes in. It helps the agent to understand the content of the page visually and make decisions based on it.
+
+#### code implementation of the `highlightInteractiveElements` function
+
+```typescript
+import { Page } from "puppeteer";
+
+// for reference, this variable must be defined in the browser context (inside the pageFunction)
+// const UNIQUE_IDENTIFIER_ATTRIBUTE = "gpt-link-text";
+
+const INTERACTIVE_ELEMENTS = [
+  "a",
+  "button",
+  "input",
+  "textarea",
+  "[role=button]",
+  "[role=treeitem]",
+  '[onclick]:not([onclick=""])',
+];
+
+/**
+ * Reset the unique identifier attribute and remove previously highlighted elements
+ * @param page
+ */
+const resetUniqueIdentifierAttribute = async (page: Page): Promise<void> => {
+  await page.evaluate(() => {
+    const UNIQUE_IDENTIFIER_ATTRIBUTE = "gpt-link-text";
+    const elements = document.querySelectorAll(
+      `[${UNIQUE_IDENTIFIER_ATTRIBUTE}]`
+    );
+    for (const element of elements) {
+      element.removeAttribute(UNIQUE_IDENTIFIER_ATTRIBUTE);
+    }
+  });
+};
+
+/**
+ * This function annotates all the interactive elements on the page
+ * @param page
+ */
+const annotateAllInteractiveElements = async (page: Page) => {
+  // $$eval method runs Array.from(document.querySelectorAll(selector)) within the `page`and passes the result as the first argument to the pageFunction.
+  // If no elements match the selector, the first argument to the pageFunction is [].
+  await page.$$eval(
+    INTERACTIVE_ELEMENTS.join(", "), // the selector can be defined outside the browser context
+
+    // the argument `elements` can be an empty array if no elements match the selector
+    function (elements) {
+      // any console.log will not be visible in the node terminal
+      // instead, it will be visible in the browser console
+
+      // handle empty array
+      if (elements.length === 0) {
+        throw new Error("No elements found");
+      }
+
+      //======================================VALIDATE ELEMENT CAN INTERACT=================================================
+      // This run-time check must be defined inside the pageFunction as it is running in the browser context. If defined outside, it will throw an error: "ReferenceError: isHTMLElement is not defined"
+      const isHTMLElement = (element: Element): element is HTMLElement => {
+        // this assertion is to allow Element to be treated as HTMLElement and has `style` property
+        return element instanceof HTMLElement;
+      };
+
+      const isElementStyleVisible = (element: Element) => {
+        const style = window.getComputedStyle(element);
+        return (
+          style.display !== "none" &&
+          style.visibility !== "hidden" &&
+          style.opacity !== "0" &&
+          style.width !== "0px" &&
+          style.height !== "0px"
+        );
+      };
+
+      const isElementVisible = (element: Element | undefined | null) => {
+        if (element === null || element === undefined) {
+          throw new Error("isElementVisible: Element is null or undefined");
+        }
+
+        let currentElement: Element | null = element;
+        while (currentElement) {
+          if (!isElementStyleVisible(currentElement)) {
+            return false;
+          }
+
+          currentElement = currentElement.parentElement;
+        }
+        return true;
+      };
+
+      //========================================PREPARE UNIQUE IDENTIFIER================================================
+
+      const setUniqueIdentifierBasedOnTextContent = (element: Element) => {
+        const UNIQUE_IDENTIFIER_ATTRIBUTE = "gpt-link-text";
+        const { textContent, tagName } = element;
+        // if the node is a document or doctype, textContent will be null
+        if (textContent === null) {
+          return;
+        }
+
+        element.setAttribute(
+          UNIQUE_IDENTIFIER_ATTRIBUTE,
+          textContent.trim().toLowerCase()
+        );
+      };
+
+      //========================================HIGHLIGHT INTERACTIVE ELEMENTS================================================
+      for (const element of elements) {
+        if (isHTMLElement(element)) {
+          // highlight all the interactive elements with a red bonding box
+          element.style.outline = "2px solid red";
+        }
+
+        // assign a unique identifier to the element
+        if (isElementVisible(element)) {
+          // set a unique identifier attribute to the element
+          // this attribute will be used to identify the element that puppeteer should interact with
+          setUniqueIdentifierBasedOnTextContent(element);
+        }
+      }
+    }
+  );
+};
+
+/**
+ * This function highlights all the interactive elements on the page
+ * @param page
+ */
+export const highlightInteractiveElements = async (page: Page) => {
+  await resetUniqueIdentifierAttribute(page);
+  await annotateAllInteractiveElements(page);
+};
+```
+
+### Code implementation of the `clickNavigationAndScreenshot` function
 
 ## Agent Structure
 

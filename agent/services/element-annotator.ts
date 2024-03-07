@@ -41,7 +41,7 @@ const annotateAllInteractiveElements = async (page: Page) => {
 
     // the argument `elements` can be an empty array if no elements match the selector
     function (elements) {
-      // any console.log will not be visible in the node terminal
+      // any console.log inside the callback will not be visible in the node terminal
       // instead, it will be visible in the browser console
 
       // handle empty array
