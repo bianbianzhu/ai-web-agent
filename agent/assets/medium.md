@@ -10,6 +10,10 @@ This article is inspired by a youtube video [GPT4V + Puppeteer = AI agent browse
 
 ### All the code shown in this article can be found in the repo [Ai Web Agent](https://github.com/bianbianzhu/ai-web-agent).
 
+## Potential Use Cases
+
+Pair with TTS it can allow people with visual impairments to browse the web.
+
 ## Overview
 
 Imagine you're keen on attending an AI event in your city this month, but you have specific criteria in mind, perhaps related to timing or the focus of the event. Normally, this would involve the following process:
@@ -39,7 +43,7 @@ Enter the AI agent, it does exactly what you do as we described above.
 
 As we are now clear on how the AI agent works, let's take a look at the architecture of the agent. The agent is structured as follows:
 
-<img src="overview.gif" width=800 height=550>
+<img src="overview.gif" width=1000 height=750>
 
 This architecture may look complex at first, but it's actually quite simple once you understand the different components and how they work together. Let's break it down.
 
@@ -49,7 +53,7 @@ This is the starting point of the workflow. The user interacts with the agent by
 
 Here's a simple view of the starting point:
 
-<img src="initial-step.png" width=300 height=130>
+<img src="initial-step.png" width=500 height=230>
 
 The example of the `user task prompt` might be:
 
@@ -189,7 +193,7 @@ export const openai = new OpenAI({
 
 As we mentioned earlier, the LLM response will be shaped into only 3 types. Each of these types will trigger a different browser-controller service to act accordingly.
 
-<img src="triage.png" width=500>
+<img src="triage.png" width=700>
 
 ### URL Response Flow - Response format `{ "url": "https://www.example.com" }`
 
@@ -200,7 +204,7 @@ As we mentioned earlier, the LLM response will be shaped into only 3 types. Each
   1. Opens a headless browser using Puppeteer and navigates to the URL
   1. The agent then takes a screenshot of the page and sends it with another special instruction prompt back to the LLM to analyze the content of the page and decide on the next steps.
 
-<img src="url-response-flow.png" width=600>
+<img src="url-response-flow.png" width=700>
 
 ### Click Response Flow - Response format `{ "click": "text on a button" }`
 
@@ -211,11 +215,11 @@ As we mentioned earlier, the LLM response will be shaped into only 3 types. Each
   1. The agent then uses Puppeteer to find the element with the matching text and clicks on it
   1. The agent then takes a screenshot of the page and sends it with another special instruction prompt back to the LLM to analyze the content of the page and decide on the next steps.
 
-<img src="click-response-flow.png" width=600>
+<img src="click-response-flow.png" width=700>
 
 Let's take a look at the `special instruction prompt` that the agent sends to the LLM after taking a screenshot of the page.
 
-<img src="instruction-after-screenshot.png" width=500>
+<img src="instruction-after-screenshot.png" width=600>
 
 Credit: [JayZeeDesign](https://github.com/JayZeeDesign/Scrape-anything---Web-AI-agent)
 
@@ -351,7 +355,7 @@ Now, we are clear on the different paths the agent can take. One thing to note i
 
 An example of the loop is like:
 
-<img src="loop.png" width=700>
+<img src="loop.png" width=800>
 
 The URL or Click Response Flow will be fired multiple times until the agent has found the answer.
 
@@ -491,13 +495,13 @@ Overall, the browser-controller service is responsible for the following:
 1. Clicking on a link
 1. Taking a screenshot of the page
 
-<img src="pptr.png" width=500>
+<img src="pptr.png" width=600>
 
 Wait, there is another one, the service that `annotates HTML elements` for the agent. It can highlight elements with a red bounding box and add unique identifiers to them. This is useful for the agent to understand the content of the page `visually` and make decisions based on it. **With the annotation, the accuracy of the agent's interpretation of the image is largely improved**. This concept is called `Set-of-Mark Prompting`.
 
 Here is an example of the annotated screenshot:
 
-<img src="annotation.png" width=800>
+<img src="annotation.png" width=900>
 
 There is a research paper discussing the importance this topic in detail: [Set-of-Mark Prompting](https://arxiv.org/abs/2310.11441) and the code implementation of SOM will be discussed below.
 
@@ -547,7 +551,7 @@ export const initController = async () => {
 #### Step 2 - Navigate to a URL and take a screenshot
 
 ```typescript
-export const navigateToURL = async (url: string, page: Page) => {
+export const navToUrlAndScreenshot = async (url: string, page: Page) => {
   console.log(`...Opening ${url}`);
   // validate the URL
   if (!isValidURL(url)) {
@@ -588,7 +592,7 @@ The flowchart below shows the logic of the `waitAndScreenshot` function:
 
 To have a better understanding of the `waitAndScreenshot` function, let's take a look at the log of the function in action:
 
-<img src="wait-html-render-log.png" width=400>
+<img src="wait-html-render-log.png" width=500>
 
 After the page is **completely** loaded, all interactive elements are highlighted and a screenshot is taken.
 
@@ -681,15 +685,15 @@ export const waitTillHTMLRendered = async (
 };
 ```
 
-Let's look deeper into the `highlightInteractiveElements` function. It is a service that annotates HTML elements for the agent. It can highlight elements with a red bounding box and add unique identifiers to them. This is useful for the agent to understand the content of the page visually and make decisions based on it.
+Let's look deeper into the `highlightInteractiveElements` function. It is a service that annotates the interactive HTML elements for the agent. It can highlight elements with a red bounding box and add unique identifiers to them. Imagine giving your AI agent a special pair of glasses that lets it see the interactive spots on a website—the buttons, links, and fields—like glowing treasures on a treasure map. That's essentially what the `highlightInteractiveElements` function does. It's like a highlighter for the digital world, sketching red boxes around clickable items and tagging them with digital nametags.
 
-Technically, the function does the following:
+Here's how it performs:
 
-1. Remove the unique identifier attribute `gpt-link-text` set previously.
-1. Annotate all the interactive elements, such as links, buttons, and input fields, on the page, by giving them a red outline.
-1. Set a unique identifier attribute to the element. This attribute will be used to identify the element that Puppeteer can later interact with.
+1. It starts by clearing the stage, removing any old digital nametags (html attribute `gpt-link-text`) that might confuse our AI.
+2. Then, it lights up every clickable thing it finds with a red outline. It's not just making things pretty—this helps the AI spot where to 'click'.
+3. Each interactive element gets a unique nametag. This isn’t just any tag; This tag/attribute will be used to identify the element that Puppeteer can later interact with.
 
-Of course, there are other ways to apply Set-of-Mark Prompting. However, when dealing with puppeteer or any other testing framework that programmatically interacts with the web, it is important to know that the element with a targeted link text may not be visible or interactable. Here is a simple example:
+One key detail to remember is when dealing with puppeteer or any other testing framework that programmatically interacts with the web, the element with a link text may not be visible. Here is a simple example:
 
 ```html
 <div style="display: none">
@@ -699,7 +703,9 @@ Of course, there are other ways to apply Set-of-Mark Prompting. However, when de
 </div>
 ```
 
-If the LLM response is `{"click": "Click me"}`, the agent will not be able to click on the link because the link is not visible. This is where the Set-of-Mark Prompting comes in. It helps the agent to understand the content of the page visually and make decisions based on it.
+The parent div is hidden, so the link is not visible. This element should be excluded. Recursive checking the parent element is necessary to ensure the element is visible. See below graph for the logic:
+
+<img src="is-element-visible.gif" width=600>
 
 #### code implementation of the `highlightInteractiveElements` function
 
@@ -835,20 +841,109 @@ export const highlightInteractiveElements = async (page: Page) => {
 
 ### Code implementation of the `clickNavigationAndScreenshot` function
 
+This function is used to click on a specific element on the page and wait for the page to load completely and then take a screenshot.
+
+It basically has one more step than `navToUrlAndScreenshot` - the click action.
+
+```typescript
+export const clickNavigationAndScreenshot = async (
+  linkText: string,
+  page: Page,
+  browser: Browser
+) => {
+  let imagePath;
+  try {
+    const navigationPromise = page.waitForNavigation();
+    // The Click action
+    const clickResponse = await clickOnLink(linkText, page);
+    if (!clickResponse) {
+      await navigationPromise;
+      imagePath = await waitAndScreenshot(page);
+    } else {
+      // if the link opens in a new tab, ignore the navigationPromise as there won't be any navigation
+      navigationPromise.catch(() => undefined);
+      const newPage = await newTabNavigation(clickResponse, page, browser);
+
+      if (newPage === undefined) {
+        throw new Error("The new page cannot be opened");
+      }
+
+      imagePath = await waitAndScreenshot(newPage);
+    }
+
+    return imagePath;
+  } catch (err) {
+    throw err;
+  }
+};
+```
+
+#### Code implementation of the `clickOnLink` function
+
+This function loops through all the elements with the `gpt-link-text` attribute (unique identifier received during element annotation) and clicks on the one that matches the link text provided by the LLM.
+
+```typescript
+const clickOnLink = async (linkText: string, page: Page) => {
+  try {
+    const clickResponse = await page.evaluate(async (linkText) => {
+      const isHTMLElement = (element: Element): element is HTMLElement => {
+        return element instanceof HTMLElement;
+      };
+      const elements = document.querySelectorAll("[gpt-link-text]");
+
+      for (const element of elements) {
+        if (!isHTMLElement(element)) {
+          continue;
+        }
+
+        if (
+          element
+            .getAttribute("gpt-link-text")
+            ?.includes(linkText.trim().toLowerCase())
+        ) {
+          // This if statement is to handle the case where the link opens in a new tab
+          if (element.getAttribute("target") === "_blank") {
+            return element.getAttribute("gpt-link-text");
+          }
+
+          element.style.backgroundColor = "rgba(255,255,0,0.25)";
+          element.click();
+          return;
+        }
+      }
+
+      // only if the loop ends without returning
+      throw new Error(`Link with text not found: "${linkText}"`);
+    }, linkText);
+
+    return clickResponse;
+  } catch (err) {
+    if (err instanceof Error) {
+      throw err;
+    }
+  }
+};
+```
+
 ## Agent Structure
 
-The agent directory is structured as follows:
+Eventually, the agent directory is structured as follows:
 
-agent.ts: This is the main script for our agent. It orchestrates the other services and is responsible for the main execution flow of the agent.
+agent.ts: This is the main script for our agent. It orchestrates the other services and is responsible for the main execution flow of the agent. It contains the starting point, the main loop, and the path selection logic.
 
 services/: This directory contains various services used by the agent. Each service is responsible for a specific task.
 
-browser-controller.ts: This service controls the browser using Puppeteer. It can navigate to pages, interact with elements, and extract data from the page.
-data-transformer.ts: This service transforms data for the agent. It can format data, clean it, and prepare it for further processing.
-element-annotator.ts: This service annotates HTML elements for the agent. It can highlight elements, add unique identifiers to them, and more.
-openai.ts: This service interfaces with the OpenAI API. It can send prompts to the API and process the responses.
-prompt-map.ts: This service maps user prompts to actions. It can determine what action the agent should take based on the user's input.
-user-prompt-interface.ts: This service interfaces with the user to get prompts. It can read user input and pass it to the agent.
-test.ts: This file contains tests for the agent. It ensures that the agent and its services are working correctly.
+- browser-controller.ts: This service controls the browser using Puppeteer. It can navigate to pages, interact with elements, and take screenshots.
+- data-transformer.ts: This service transforms data for the agent. It can format data, clean it, and prepare it for further processing.
+- element-annotator.ts: This service annotates HTML elements for the agent. It can highlight elements, add unique identifiers to them, and more.
+- openai.ts: This service interfaces with the OpenAI API.
+- prompt-map.ts: This service maps user prompts to actions. It can determine what action the agent should take based on the user's input.
+- user-prompt-interface.ts: This service interfaces with the user to get prompts. It can read user input and pass it to the agent.
 
 utils.ts: This file contains utility functions used by the agent. These functions are used throughout the agent code to perform common tasks.
+
+For the full code implementation, please refer to the [Ai Web Agent](https://github.com/bianbianzhu/ai-web-agent).
+
+## Conclusion
+
+In this article, we have gone through the architecture of the AI agent, the code implementation of each step, and some concepts behind the design, such as Set-of-Mark Prompting. The agent is a elegant system that requires careful orchestration of different services to work effectively, and currently it has plenty of issues and limitations. If you have any questions or suggestions, please feel free to reach out to me. I would be happy to discuss this topic further.
