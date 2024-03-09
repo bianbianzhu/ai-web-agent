@@ -22,7 +22,7 @@ export const userPromptInterface = async (query: string) => {
 
 /**
  * This service creates a user prompt interface and returns a promise that resolves to the user's input. Allow user to input in the `terminal`.
- * @param query
+ * @param query The message to hint the user on what to input
  * @returns A promise that resolves to the user's input
  */
 export const userPromptInterfaceV2 = async (query: string) => {
