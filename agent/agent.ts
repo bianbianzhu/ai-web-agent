@@ -45,6 +45,10 @@ const taskFlow = async (): Promise<void> => {
       max_tokens: 1024,
       messages,
       temperature: 0,
+
+      // response_format: { type: "json_object" },
+      // BadRequestError: 400 1 validation error for Request body -> response_format extra fields not permitted (type=value_error.extra)
+      // response_format argument works for gpt-4-1106-preview and other models, however, it doesn’t work for gpt-4-vision-preview. So, note that you can’t get JSON output with the vision model, at least with the current preview.
     });
 
     // For the initial conversation, the agent will provide the url (google search if not provided by the user)
