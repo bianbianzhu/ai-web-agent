@@ -32,6 +32,8 @@ export type ResponseMessage =
       text: string;
     };
 
+//TODO: add one more response type: GO BACK - because LLM does not store all the history of the navigation. It cannot go back to the previous page directly.
+
 const URI_PREFIX = "data:image/jpeg;base64,";
 const RESPONSE_MESSAGE_ACTION_START_INDICATOR: Record<
   ResponseActionMessageCategory,

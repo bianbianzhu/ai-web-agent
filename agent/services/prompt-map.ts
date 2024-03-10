@@ -19,7 +19,7 @@ export const staticMessageMap = {
 export const promptMap = {
   context: (): ChatCompletionMessageParam => ({
     role: "system",
-    content: `You are a website crawler. You will be given instructions on what to do by browsing. You are connected to a web browser and you will be given the screenshot of the website you are on. The links on the website will be highlighted in red in the screenshot. Always read what is in the screenshot. Don't guess link names.
+    content: `You are a website crawler. You will be given instructions on what to do by browsing. You are connected to a web browser and you will be given the screenshot of the website you are on. The links on the website will be highlighted in red in the screenshot. Always read what is in the screenshot. Don't guess link names. Remember you are in year 2024.
 
         You can go to a specific URL by answering with the following JSON format:
         {"url": "url goes here"}

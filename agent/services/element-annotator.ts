@@ -6,8 +6,9 @@ import { Page } from "puppeteer";
 const INTERACTIVE_ELEMENTS = [
   "a",
   "button",
-  "input",
-  "textarea",
+  /** to avoid clicking on the google search input */
+  // "input",
+  // "textarea",
   "[role=button]",
   "[role=treeitem]",
   '[onclick]:not([onclick=""])',
@@ -111,6 +112,8 @@ const annotateAllInteractiveElements = async (page: Page) => {
         if (textContent === null) {
           return;
         }
+
+        //TODO: <a title="MacBook Air 15&quot; M3 8-Core CPU 10-Core GPU 8/256GB Starlight"></a> This a link does not have textContent, but it has a title attribute. The title attribute can be used as the unique identifier
 
         // there is no way for the llm to point a element without textContent, like a button with an icon (assumably), the following logic is disabled for now
         // const linkText =

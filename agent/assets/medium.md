@@ -12,7 +12,8 @@ This article is inspired by a youtube video [GPT4V + Puppeteer = AI agent browse
 
 ## Potential Use Cases
 
-Pair with TTS it can allow people with visual impairments to browse the web.
+- Pair with Text to speech, it can allow people with visual impairments to browse the web.
+- Quickly locate a product on an E-commerce website.
 
 ## Overview
 
@@ -27,7 +28,7 @@ If we break down the above process, it basically involves steps that can be cate
 
 1. Control the browser, such as go to a URL, click on a link, go back, etc.
 1. Browser through the content of a page
-1. Make decisions based on the content of that page, such as whether to click on a link or not.
+1. Make decisions based on the content of that page, such as determining which link is relevant to your query.
 
 Enter the AI agent, it does exactly what you do as we described above.
 
@@ -482,12 +483,43 @@ As you may notice, we didn't specify the regular message flow in the loop. This 
 console.log(`${staticMessageMap.agent}${messageText}`);
 ```
 
+## Directory Structure
+
+After understanding the main flow of the agent, let's take a look at the directory structure of the agent.
+
+```
+agent.ts
+services/
+├── browser-controller.ts
+├── data-transformer.ts
+├── element-annotator.ts
+├── openai.ts
+├── prompt-map.ts
+└── user-prompt-interface.ts
+utils.ts
+```
+
+`agent.ts`: This is the main script for our agent. It orchestrates the other services and is responsible for the main execution flow of the agent. It contains the starting point, the main loop, and the path selection logic.
+
+`services/`: This directory contains various services used by the agent. Each service is responsible for a specific task.
+
+- browser-controller.ts: This service controls the browser using Puppeteer. It can navigate to pages, interact with elements, and take screenshots.
+- data-transformer.ts: This service transforms data for the agent. It can format data, clean it, and prepare it for further processing.
+- element-annotator.ts: This service annotates HTML elements for the agent. It can highlight elements, add unique identifiers to them, and more.
+- openai.ts: This service interfaces with the OpenAI API.
+- prompt-map.ts: This service maps user prompts to actions. It can determine what action the agent should take based on the user's input.
+- user-prompt-interface.ts: This service interfaces with the user to get prompts. It can read user input and pass it to the agent.
+
+`utils.ts`: This file contains utility functions used by the agent. These functions are used throughout the agent code to perform common tasks.
+
+For the full code implementation, please refer to the [Ai Web Agent](https://github.com/bianbianzhu/ai-web-agent).
+
 ## Browser Controller Service
 
-Now, we understand how the agent works in general. Let's dive into how it controls the browser - how its hands work.
+Now, let's dive into how the agent controls the browser - how its hands work.
 A library called `Puppeteer` is used here. It provides a high-level API over the Chrome DevTools Protocol. See the [Puppeteer documentation](https://pptr.dev/) for more details.
 
-Essentially, Puppeteer gets called after the agent receives a response from the LLM. Under different paths as we mentioned above, Puppeteer will be used for different actions.
+Essentially, Puppeteer gets called after the agent receives a response from the LLM. Under different paths as we mentioned above, Puppeteer will execute different actions.
 
 Overall, the browser-controller service is responsible for the following:
 
@@ -495,15 +527,9 @@ Overall, the browser-controller service is responsible for the following:
 1. Clicking on a link
 1. Taking a screenshot of the page
 
-<img src="pptr.png" width=600>
+<img src="puppeteer-jobs.png" width=600>
 
-Wait, there is another one, the service that `annotates HTML elements` for the agent. It can highlight elements with a red bounding box and add unique identifiers to them. This is useful for the agent to understand the content of the page `visually` and make decisions based on it. **With the annotation, the accuracy of the agent's interpretation of the image is largely improved**. This concept is called `Set-of-Mark Prompting`.
-
-Here is an example of the annotated screenshot:
-
-<img src="annotation.png" width=900>
-
-There is a research paper discussing the importance this topic in detail: [Set-of-Mark Prompting](https://arxiv.org/abs/2310.11441) and the code implementation of SOM will be discussed below.
+There is, in fact, another step taken before the agent takes a screenshot of the page - `Highlighting interactive elements`. We have separated this service into a different file to make the code more modular and easier to maintain. It will be discussed in the next section.
 
 ### Code implementation of the browser-controller service
 
@@ -548,7 +574,9 @@ export const initController = async () => {
 };
 ```
 
-#### Step 2 - Navigate to a URL and take a screenshot
+Based on different response flows, the agent would either navigate to a URL and take a screenshot, or click on a link which triggers a navigation and take a screenshot.
+
+#### 2.1 `URL Response Flow`: Navigate to a URL and take a screenshot
 
 ```typescript
 export const navToUrlAndScreenshot = async (url: string, page: Page) => {
@@ -575,28 +603,7 @@ export const navToUrlAndScreenshot = async (url: string, page: Page) => {
 };
 ```
 
-As shown, the navigation to the URL is done via `page.goto()`. This method utilizes the `waitUntil` option for the page load. After the page is loaded, the agent takes a screenshot. It is very crucial to wait for all the visual content to be loaded before taking the screenshot to ensure the agent gets the full info of the page.
-
-Unfortunately, in many cases, the `waitUntil` in `GoToOptions` (page.goto()) is not enough to wait for the page to load completely (especially with dynamic loading content), so we need to use the custom function `waitAndScreenshot`.
-
-This function basically checks if the page is still loading via `document.readyState` or if there is a loading indicator on the page.
-If the page is still loading, the function will call `waitTillHTMLRendered` to undertake a comprehensive check:
-
-1. It checks the HTML size every second.
-1. If the HTML size remains the same for 3 consecutive seconds, it assumes the page has finished loading.
-1. Throw error if the page is still loading after 30 seconds (timeout).
-
-The flowchart below shows the logic of the `waitAndScreenshot` function:
-
-<img src="wait-html-render.gif" width=1000>
-
-To have a better understanding of the `waitAndScreenshot` function, let's take a look at the log of the function in action:
-
-<img src="wait-html-render-log.png" width=500>
-
-After the page is **completely** loaded, all interactive elements are highlighted and a screenshot is taken.
-
-#### code implementation of the `waitAndScreenshot` function
+#### The `waitAndScreenshot` function
 
 ```typescript
 const waitAndScreenshot = async (page: Page) => {
@@ -622,7 +629,30 @@ const waitAndScreenshot = async (page: Page) => {
 };
 ```
 
-#### code implementation of the `waitTillHTMLRendered` function
+The screenshot is simply taken by calling `page.screenshot()`. You may change the configuration to meet your needs.
+
+#### The `waitTillHTMLRendered` function
+
+As shown, the navigation to the URL is done via `page.goto()`. This method utilizes the `waitUntil` option for the page load. After the page is loaded, the agent takes a screenshot. It is very crucial to wait for all the visual content to be loaded before taking the screenshot to ensure the agent gets the full info of the page.
+
+Unfortunately, in many cases, the `waitUntil` in `GoToOptions` (page.goto()) is not enough to wait for the page to load completely (especially with dynamic loading content), so we need to use the custom function `waitTillHTMLRendered`.
+
+This function basically checks if the page is still loading via `document.readyState` or if there is a loading indicator on the page.
+If the page is still loading, the function will call `waitTillHTMLRendered` to undertake a comprehensive check:
+
+1. It checks the HTML size every second.
+1. If the HTML size remains the same for 3 consecutive seconds, it assumes the page has finished loading.
+1. Throw error if the page is still loading after 30 seconds (timeout).
+
+The flowchart below shows the logic of the `waitTillHTMLRendered` function:
+
+<img src="wait-html-render.png" width=1000>
+
+To have a better understanding of the `waitAndScreenshot` function, let's take a look at the log of the function in action:
+
+<img src="wait-html-render-log.png" width=500>
+
+After the page is **completely** loaded, all interactive elements are highlighted and a screenshot is taken.
 
 ```typescript
 export const waitTillHTMLRendered = async (
@@ -685,13 +715,115 @@ export const waitTillHTMLRendered = async (
 };
 ```
 
-Let's look deeper into the `highlightInteractiveElements` function. It is a service that annotates the interactive HTML elements for the agent. It can highlight elements with a red bounding box and add unique identifiers to them. Imagine giving your AI agent a special pair of glasses that lets it see the interactive spots on a website—the buttons, links, and fields—like glowing treasures on a treasure map. That's essentially what the `highlightInteractiveElements` function does. It's like a highlighter for the digital world, sketching red boxes around clickable items and tagging them with digital nametags.
+#### 2.2 `Click Response Flow`: The `clickNavigationAndScreenshot` function
+
+This function is used to click on a specific element on the page and wait for the page to load completely and then take a screenshot. For the `click` action, it utilizes another function called `clickOnLink`.
+
+```typescript
+export const clickNavigationAndScreenshot = async (
+  linkText: string,
+  page: Page,
+  browser: Browser
+) => {
+  let imagePath;
+  try {
+    const navigationPromise = page.waitForNavigation();
+    // The Click action
+    const clickResponse = await clickOnLink(linkText, page);
+    if (!clickResponse) {
+      // if the link triggers a navigation on the same page, wait for the page to load completely and then take a screenshot
+      await navigationPromise;
+      imagePath = await waitAndScreenshot(page);
+    } else {
+      // if the link opens in a new tab, ignore the navigationPromise as there won't be any navigation
+      navigationPromise.catch(() => undefined);
+      // switch to the new tab and take a screenshot
+      const newPage = await newTabNavigation(clickResponse, page, browser);
+
+      if (newPage === undefined) {
+        throw new Error("The new page cannot be opened");
+      }
+
+      imagePath = await waitAndScreenshot(newPage);
+    }
+
+    return imagePath;
+  } catch (err) {
+    throw err;
+  }
+};
+```
+
+#### The `clickOnLink` function
+
+This function loops through all the elements with the `gpt-link-text` attribute (unique identifier received during element annotation) and clicks on the one that matches the link text provided by the LLM.
+
+```typescript
+const clickOnLink = async (linkText: string, page: Page) => {
+  try {
+    const clickResponse = await page.evaluate(async (linkText) => {
+      const isHTMLElement = (element: Element): element is HTMLElement => {
+        return element instanceof HTMLElement;
+      };
+      const elements = document.querySelectorAll("[gpt-link-text]");
+
+      for (const element of elements) {
+        if (!isHTMLElement(element)) {
+          continue;
+        }
+
+        if (
+          element
+            .getAttribute("gpt-link-text")
+            ?.includes(linkText.trim().toLowerCase())
+        ) {
+          // This if statement is to handle the case where the link opens in a new tab
+          if (element.getAttribute("target") === "_blank") {
+            return element.getAttribute("gpt-link-text");
+          }
+
+          element.style.backgroundColor = "rgba(255,255,0,0.25)";
+          element.click();
+          return;
+        }
+      }
+
+      // only if the loop ends without returning
+      throw new Error(`Link with text not found: "${linkText}"`);
+    }, linkText);
+
+    return clickResponse;
+  } catch (err) {
+    if (err instanceof Error) {
+      throw err;
+    }
+  }
+};
+```
+
+## Element Annotation Service
+
+Let's look deeper into the `highlightInteractiveElements` function that is called inside `waitAndScreenshot`.
+
+It is a service that annotates the interactive HTML elements for the agent. It can highlight elements with a `red bounding box` and add unique identifiers to them.
+
+Imagine giving your AI agent a special pair of glasses that lets it see the interactive spots on a website—the buttons, links, and fields—like glowing treasures on a treasure map.
+
+That's essentially what the `highlightInteractiveElements` function does. It's like a highlighter for the digital world, sketching red boxes around clickable items and tagging them with digital nametags.
+
+**With the annotation, the accuracy of the agent's interpretation of the image is largely improved**. This concept is called `Set-of-Mark Prompting`.
+
+Here is an example of the annotated screenshot:
+
+<img src="annotation.png" width=900>
+
+There is a research paper discussing the importance of this topic in detail: [Set-of-Mark Prompting](https://arxiv.org/abs/2310.11441).
 
 Here's how it performs:
 
-1. It starts by clearing the stage, removing any old digital nametags (html attribute `gpt-link-text`) that might confuse our AI.
-2. Then, it lights up every clickable thing it finds with a red outline. It's not just making things pretty—this helps the AI spot where to 'click'.
-3. Each interactive element gets a unique nametag. This isn’t just any tag; This tag/attribute will be used to identify the element that Puppeteer can later interact with.
+1. It starts by removing any old digital nametags (html attribute `gpt-link-text`) that might confuse our AI.
+2. Then, it lights up every clickable thing it finds with a red outline to help the AI spot where to 'click'.
+3. Each interactive element gets a unique nametag. This tag/attribute will be used to identify the element that Puppeteer can later interact with.
 
 One key detail to remember is when dealing with puppeteer or any other testing framework that programmatically interacts with the web, the element with a link text may not be visible. Here is a simple example:
 
@@ -705,15 +837,12 @@ One key detail to remember is when dealing with puppeteer or any other testing f
 
 The parent div is hidden, so the link is not visible. This element should be excluded. Recursive checking the parent element is necessary to ensure the element is visible. See below graph for the logic:
 
-<img src="is-element-visible.gif" width=600>
+<img src="is-element-visible.gif" width=500>
 
-#### code implementation of the `highlightInteractiveElements` function
+### Code implementation of the `highlightInteractiveElements` function
 
 ```typescript
 import { Page } from "puppeteer";
-
-// for reference, this variable must be defined in the browser context (inside the pageFunction)
-// const UNIQUE_IDENTIFIER_ATTRIBUTE = "gpt-link-text";
 
 const INTERACTIVE_ELEMENTS = [
   "a",
@@ -839,111 +968,6 @@ export const highlightInteractiveElements = async (page: Page) => {
 };
 ```
 
-### Code implementation of the `clickNavigationAndScreenshot` function
-
-This function is used to click on a specific element on the page and wait for the page to load completely and then take a screenshot.
-
-It basically has one more step than `navToUrlAndScreenshot` - the click action.
-
-```typescript
-export const clickNavigationAndScreenshot = async (
-  linkText: string,
-  page: Page,
-  browser: Browser
-) => {
-  let imagePath;
-  try {
-    const navigationPromise = page.waitForNavigation();
-    // The Click action
-    const clickResponse = await clickOnLink(linkText, page);
-    if (!clickResponse) {
-      await navigationPromise;
-      imagePath = await waitAndScreenshot(page);
-    } else {
-      // if the link opens in a new tab, ignore the navigationPromise as there won't be any navigation
-      navigationPromise.catch(() => undefined);
-      const newPage = await newTabNavigation(clickResponse, page, browser);
-
-      if (newPage === undefined) {
-        throw new Error("The new page cannot be opened");
-      }
-
-      imagePath = await waitAndScreenshot(newPage);
-    }
-
-    return imagePath;
-  } catch (err) {
-    throw err;
-  }
-};
-```
-
-#### Code implementation of the `clickOnLink` function
-
-This function loops through all the elements with the `gpt-link-text` attribute (unique identifier received during element annotation) and clicks on the one that matches the link text provided by the LLM.
-
-```typescript
-const clickOnLink = async (linkText: string, page: Page) => {
-  try {
-    const clickResponse = await page.evaluate(async (linkText) => {
-      const isHTMLElement = (element: Element): element is HTMLElement => {
-        return element instanceof HTMLElement;
-      };
-      const elements = document.querySelectorAll("[gpt-link-text]");
-
-      for (const element of elements) {
-        if (!isHTMLElement(element)) {
-          continue;
-        }
-
-        if (
-          element
-            .getAttribute("gpt-link-text")
-            ?.includes(linkText.trim().toLowerCase())
-        ) {
-          // This if statement is to handle the case where the link opens in a new tab
-          if (element.getAttribute("target") === "_blank") {
-            return element.getAttribute("gpt-link-text");
-          }
-
-          element.style.backgroundColor = "rgba(255,255,0,0.25)";
-          element.click();
-          return;
-        }
-      }
-
-      // only if the loop ends without returning
-      throw new Error(`Link with text not found: "${linkText}"`);
-    }, linkText);
-
-    return clickResponse;
-  } catch (err) {
-    if (err instanceof Error) {
-      throw err;
-    }
-  }
-};
-```
-
-## Agent Structure
-
-Eventually, the agent directory is structured as follows:
-
-agent.ts: This is the main script for our agent. It orchestrates the other services and is responsible for the main execution flow of the agent. It contains the starting point, the main loop, and the path selection logic.
-
-services/: This directory contains various services used by the agent. Each service is responsible for a specific task.
-
-- browser-controller.ts: This service controls the browser using Puppeteer. It can navigate to pages, interact with elements, and take screenshots.
-- data-transformer.ts: This service transforms data for the agent. It can format data, clean it, and prepare it for further processing.
-- element-annotator.ts: This service annotates HTML elements for the agent. It can highlight elements, add unique identifiers to them, and more.
-- openai.ts: This service interfaces with the OpenAI API.
-- prompt-map.ts: This service maps user prompts to actions. It can determine what action the agent should take based on the user's input.
-- user-prompt-interface.ts: This service interfaces with the user to get prompts. It can read user input and pass it to the agent.
-
-utils.ts: This file contains utility functions used by the agent. These functions are used throughout the agent code to perform common tasks.
-
-For the full code implementation, please refer to the [Ai Web Agent](https://github.com/bianbianzhu/ai-web-agent).
-
 ## Conclusion
 
-In this article, we have gone through the architecture of the AI agent, the code implementation of each step, and some concepts behind the design, such as Set-of-Mark Prompting. The agent is a elegant system that requires careful orchestration of different services to work effectively, and currently it has plenty of issues and limitations. If you have any questions or suggestions, please feel free to reach out to me. I would be happy to discuss this topic further.
+In this article, we have gone through the architecture of the AI agent, the code implementation of each step, and some concepts behind the design, such as Set-of-Mark Prompting. The agent is an elegant system that requires careful orchestration of different services to work effectively, and currently it has plenty of issues and limitations. If you have any questions or suggestions, please feel free to reach out to me. I would be happy to discuss this topic further.
