@@ -8,7 +8,7 @@ This agent will be able to interact with the user, control a web browser, and pr
 
 This article is inspired by a youtube video [GPT4V + Puppeteer = AI agent browse web like human? 🤖](https://www.youtube.com/watch?v=IXRkmqEYGZA&t=184s) from [AI Jason](https://www.youtube.com/@AIJasonZ).
 
-### All the code shown in this article can be found in the repo [Ai Web Agent](https://github.com/bianbianzhu/ai-web-agent).
+### All the code shown in this article can be found in the repo [Ai Web Agent](https://github.com/bianbianzhu/ai-web-agent/tree/main/agent).
 
 ## Potential Use Cases
 
