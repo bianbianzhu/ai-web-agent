@@ -70,7 +70,7 @@ Credit: [JayZeeDesign](https://github.com/JayZeeDesign/Scrape-anything---Web-AI-
 
 The system prompt is crucial because they help the agent decide how to act. The three main areas are highlighted in different colors:
 
-- <p><span style="color:Aqua; font-weight: bold">The Agent's Role: </span> What the agent is supposed to do.</p>
+- <p><span style="color:Aqua; font-weight: bold">The Agent's Role: </span> What is the role of the agent.</p>
 - <p><span style="color:red; font-weight: bold">Response Format: </span>How the agent should present its answers.</p>
 - <p><span style="color:yellow; font-weight: bold">Additional info: </span>Extra instructions to help the agent.</p>
 
@@ -105,7 +105,7 @@ The following function creates the interface in the terminal for the user to inp
 ```typescript
 /**
  * This service creates a user prompt interface and returns a promise that resolves to the user's input. Allow user to input in the `terminal`.
- * @param query
+ * @param query The message to hint the user on what to input
  * @returns A promise that resolves to the user's input
  */
 export const userPromptInterfaceV2 = async (query: string) => {
