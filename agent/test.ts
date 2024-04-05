@@ -36,39 +36,43 @@ const { browser, page } = await initController();
 //   page
 // );
 
-// await clickNavigationAndScreenshot("Computers – Apple MacBooks & iMacs", page);
-
-// await screenshot(
-//   "https://www.eventbrite.com.au/d/australia--southbank/melbourne/",
-//   page
-// );
-
 // await clickNavigationAndScreenshot(
-//   "Melbourne Zoo Wildlife Photography Course-Wildlife Photography Course 1",
+//   "Computers – Apple MacBooks & iMacs",
 //   page,
 //   browser
 // );
 
-try {
-  await screenshot(
-    "https://allevents.in/melbourne/artificial%20intelligence",
-    page
-  );
+await screenshot(
+  "https://www.eventbrite.com.au/d/australia--southbank/melbourne/",
+  page
+);
 
-  await clickNavigationAndScreenshot(
-    "CRADLE Seminar: Measuring feedback literacy & feedback in doctoral studies",
-    page,
-    browser
-  );
-} catch (err) {
-  if (
-    err instanceof Error &&
-    err.message.includes("Link with text not found")
-  ) {
-    console.log(`...Error clicking on link: ${err.message}`);
-  } else {
-    console.log(`...Unexpected error: ${err}. Please try again.`);
-  }
-}
+await clickNavigationAndScreenshot(
+  "Melbourne Zoo Wildlife Photography Course-Wildlife Photography Course 1",
+  page,
+  browser
+);
+
+// try {
+//   await screenshot(
+//     "https://allevents.in/melbourne/artificial%20intelligence",
+//     page
+//   );
+
+//   await clickNavigationAndScreenshot(
+//     "CRADLE Seminar: Measuring feedback literacy & feedback in doctoral studies",
+//     page,
+//     browser
+//   );
+// } catch (err) {
+//   if (
+//     err instanceof Error &&
+//     err.message.includes("Link with text not found")
+//   ) {
+//     console.log(`...Error clicking on link: ${err.message}`);
+//   } else {
+//     console.log(`...Unexpected error: ${err}. Please try again.`);
+//   }
+// }
 
 // const elements = await page.$$("[gpt-link-text]");

@@ -152,10 +152,11 @@ export const convertTextToResponseMessage = (text: string): ResponseMessage => {
   };
 };
 
-export const shouldContinueLoop = (ResponseMessage: ResponseMessage) => {
-  const { type } = ResponseMessage;
+export const shouldContinueLoop = (responseMessage: ResponseMessage) => {
+  // avoid using destructuring here to avoid use the reserved `type` keyword
+  // const { type } = responseMessage;
 
-  if (type === ResponseMessageCategory.REGULAR) {
+  if (responseMessage.type === ResponseMessageCategory.REGULAR) {
     return false;
   }
 
