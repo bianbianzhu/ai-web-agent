@@ -49,7 +49,7 @@ namespace NodeJS {
 }
 ```
 
-4. Run `yarn dev/agent/agent.ts` to start the agent
+4. Run `yarn dev agent/agent.ts` to start the agent
 5. Input your query and the agent will open a new browser window and start the workflow.
 
 ## Additional Information
